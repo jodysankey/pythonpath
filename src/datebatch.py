@@ -1,13 +1,13 @@
 #========================================================
 # DateBatch.py
 #========================================================
-# $HeadURL$
+# $HeadURL:                                             $
 # Last $Author$
 # $Revision$
 # $Date$
 #========================================================
 # DateBatcher class to call specified functions at date
-#  based intervals, equivalent to DateBatch.exe
+# based intervals, equivalent to DateBatch.exe
 #========================================================
 
 #Imports
