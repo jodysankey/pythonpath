@@ -37,15 +37,6 @@ def createFile(subpath,name,size):
 class DateBatchTestCase(unittest.TestCase):
 
     def setUp(self):
-        #Make sure we remove any existing test dir first, then create a new one
-#        if platform.system()=='Windows':
-#
-#        try:
-#            os.stat(test_path)
-#        except WindowsError:
-#            pass
-#        else:
-#            shutil.rmtree(test_path)
         if os.path.isdir(test_path):
             shutil.rmtree(test_path)
         os.mkdir(test_path)
@@ -73,14 +64,21 @@ class DateBatchTestCase(unittest.TestCase):
         """Test all sizes, one and two levels undefined, recurse in non recurse"""
         createClassify('abc','small','none','true')
         createClassify('ad','medium','none','false')
-        createClassify('ade','small','none','true')
+        createClassify('ade','large','none','true')
         createClassify('f','huge','none','true')
         createClassify('g','none','none','true')
+
+        createFile('ab', 'none', 500)
+        createFile('abc', 'small1', 500)
+        createFile('abc', 'small2', 500)
+        createFile('ad', 'medium', 500)
+        createFile('ade', 'large', 500)
+        createFile('f', 'huge', 500)
 
         target = [
                   ['small', 'none', 'a:b:c'], 
                   ['medium', 'none', 'a:d'], 
-                  ['small', 'none', 'a:d:e'], 
+                  ['large', 'none', 'a:d:e'], 
                   ['huge', 'none', 'f'], 
                   ['none', 'none', 'g']
                 ]
@@ -94,8 +92,23 @@ class DateBatchTestCase(unittest.TestCase):
         
         self.failUnlessEqual(result,target,"Structure 1 - Did not return correct list")
 
+        self.failUnless(cd.dirCount()==5,
+                        "Structure 1 - Returned wrong total directory count")
+        self.failUnless(cd.dirCount('small',None)==1,
+                        "Structure 1 - Returned wrong small directory count")
+        self.failUnless(cd.fileCount()==10,
+                        "Structure 1 - Returned wrong total file count")
+        self.failUnless(cd.fileCount('medium',None)==2,
+                        "Structure 1 - Returned wrong medium file count")
+        self.failUnless(cd.totalSize()==2725,
+                        "Structure 1 - Returned wrong total files size")
+        self.failUnless(cd.totalSize('large','secret')==0,
+                        "Structure 1 - Returned wrong large secret file size")
+
+
         #Also just run the functions to verify no exceptions
         cd.printSummary()
+        cd.printTable()
 
 
     def testStructureTwo (self):
@@ -127,9 +140,11 @@ class DateBatchTestCase(unittest.TestCase):
         print(result)
         
         self.failUnlessEqual(result,target,"Structure 2 - Did not return correct list")
+        
 
         #Also just run some functions to verify no exceptions
         cd.printSummary()
+        cd.printTable()
 
 
 

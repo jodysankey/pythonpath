@@ -21,30 +21,29 @@ __author__="Jody"
 
 
 MAGIC_FILE=".classify"
+T_T="TOTAL"
 
 settings = {
-    'volume':{ 
-        'small': 'HDD, CF, 4 copies per SD',
-        'medium':'HDD, CF, 2 copies per SD',
-        'large': 'HDD, CF backup only',
-        'huge':  'HDD backup only',
-        'none':  'Not included in backup',
-    },
-    'protection':{
-        'secret':      'Always encrypted',
-        'confidential':'Encrypted on removable media',
-        'restricted':  'Access control only',
-        'none':        'No controls or encryptions',
-    },
-    'recurse':{
-        'true': 'Apply to child directories',
-        'false':'Do not apply to child directories',
-    },
+    'volume':[
+        ('small','HDD, CF, 4 copies per SD'),
+        ('medium','HDD, CF, 2 copies per SD'),
+        ('large','HDD, CF backup only'),
+        ('huge','HDD backup only'),
+        ('none','Not included in backup'),
+    ],
+    'protection':[
+        ('secret','Always encrypted'),
+        ('confidential','Encrypted on removable media'),
+        ('restricted','Access control only'),
+        ('none','No controls or encryptions'),
+    ],
+    'recurse':[
+        ('true', 'Apply to child directories'),
+        ('false','Do not apply to child directories'),
+    ],
 }
 
 # Status = implicit,explicit,undefined
-
-
 
  
               
@@ -60,7 +59,7 @@ class ClassifiedDir(object):
         if self.__matches(volume,protection):
             ret.append([self.volume,self.protection,self.rel_path])
         for child in self.children:
-            child_dir = child.dirList()
+            child_dir = child.dirList(volume,protection)
             ret += child_dir
         return ret
 
@@ -127,6 +126,59 @@ class ClassifiedDir(object):
             child.__printSummary(depth+1)
         if not self.completed:
             print("{}<any extra directories not shown>".format("  "*(depth+1)))
+
+
+    def printTable(self):
+        """Function to print a grid of file/dir count by classification"""
+        protections = [opt[0] for opt in settings['protection']] + [None]
+        volumes = [opt[0] for opt in settings['volume']] + [None]
+        
+        #Calculate the contents of each cell first
+        entries = [[('','','')]+[('',T_T,'') if v==None 
+            else ('',v.capitalize(),'') for v in volumes]] 
+        for p in protections:
+            row_data = [('',T_T if p==None else p.capitalize(),'')]
+            for v in volumes:
+                files = self.fileCount(v,p)
+                dirs = self.dirCount(v,p)
+                size = self.totalSize(v,p)
+                if files==None:
+                    row_data.append(('',"N/A",''))
+                elif files>0:
+                    row_data.append((str(files),str(dirs),self.__humanSize(size)))
+                else:
+                    row_data.append(('','-',''))
+            entries.append(row_data)
+        
+        #Summarize the widest thing in each column
+        widths = []
+        for c in range(len(entries[0])):
+            widths.append(0)
+            for r in range(len(entries)):
+                widths[c] = max([widths[c]]+[len(s) for s in entries[r][c]])
+            #widths.append(max([len(entries[r][c]) for r in range(len(entries))]))
+
+        #Build standard strings for the header and divider
+        hdr = ' ' + ' '*(widths[0]+2) + '+'
+        div = '+' + '-'*(widths[0]+2) + '+'
+        for w in widths[1:]:
+            hdr += '-'*(w+2) + '+'
+            div += '-'*(w+2) + '+'
+            
+                
+        #Then do the work
+        print(hdr)
+        for r in range(len(entries)):
+            lines = [' ' if r==0 else '|']*3
+            for c in range(len(widths)):
+                fmt = " {0: " + ('>' if c==0 else '^') + str(widths[c]) + "} |"
+                for l in range(3):
+                    lines[l] += fmt.format(entries[r][c][l])
+            for line in lines:
+                print(line)
+            print(div)
+        
+
 
 
     def __humanSize(self,bytes):
@@ -239,6 +291,6 @@ class ClassifiedDir(object):
             raise Exception("Unknown setting '{}'".format(setting))
         if setting in hsh.keys():
             raise Exception("Duplicate setting for {}".format(setting))
-        if value not in settings[setting].keys():
+        if value not in [set[0] for set in settings[setting]]:
             raise Exception("Invalid value '{}' for {}".format(value,setting))        
         hsh[setting]=value
