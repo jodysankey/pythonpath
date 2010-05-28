@@ -4,6 +4,7 @@ import shutil
 import unittest
 import platform
 
+
 if platform.system()=='Windows':
     #test_path = os.getenv("TMP") + "/DateBatchTest" # TMP set to some hideous directory
     test_path = r"C:\Temp\ClassifyDirTest"
@@ -11,15 +12,17 @@ else:
     test_path = "/tmp/ClassifyDirTest"
     
 
-def createClassify(subpath,volume,protection,recurse):
+def createClassify(subpath,volume,protection,recurse,compress,name=''):
     """Create a standard .classify file at given location"""
 
     path = test_path
     for subdir in subpath:
         path = os.path.join(path,subdir)
     file = open(os.path.join(path,classifydir.MAGIC_FILE),"a+")
-    for setting in zip(('volume','protection','recurse'),(volume,protection,recurse)):
+    for setting in zip(('volume','protection','recurse','compress'),(volume,protection,recurse,compress)):
         file.write("{}={}\n".format(*setting))
+    if len(name)>0:
+        file.write("name={}\n".format(name))
     file.close()
 
 def createFile(subpath,name,size):
@@ -42,15 +45,16 @@ class DateBatchTestCase(unittest.TestCase):
         os.mkdir(test_path)
 
         # Now create a directory structure which looks like this
+        # * Indicates compressible
             
         #            Test 1  Test 2  Test 3  Test 4
         # +            -      N,n      -       -
-        # +-A          -      R,n     Sm,n    Sm,R
-        # | +-B        -      C,n      -       -
-        # | | \-C     Sm,R    S,n      -      Me,R
+        # +-A          -      R,n *   Sm,n    Sm,R
+        # | +-B        -      C,n *    -       -
+        # | | \-C     Sm,R    S,n *    -      Me,R
         # | \-D       Me,n    S,R      -       -
         # |   +-E     Lg,R     -       -       -
-        # +-F         Hu,R    S,R      -       -
+        # +-F         Hu,R    R,R      -       -
         # \-G         No,R    S,R      -       -
 
         for subpath in ('a','ab','abc','ad','ade','f','g'):
@@ -62,11 +66,11 @@ class DateBatchTestCase(unittest.TestCase):
 
     def testStructureOne (self):
         """Test all sizes, one and two levels undefined, recurse in non recurse"""
-        createClassify('abc','small','none','true')
-        createClassify('ad','medium','none','false')
-        createClassify('ade','large','none','true')
-        createClassify('f','huge','none','true')
-        createClassify('g','none','none','true')
+        createClassify('abc','small','none','true','false')
+        createClassify('ad','medium','none','false','false')
+        createClassify('ade','large','none','true','false')
+        createClassify('f','huge','none','true','false')
+        createClassify('g','none','none','true','false')
 
         createFile('ab', 'none', 500)
         createFile('abc', 'small1', 500)
@@ -76,19 +80,20 @@ class DateBatchTestCase(unittest.TestCase):
         createFile('f', 'huge', 500)
 
         target = [
-                  ['small', 'none', 'a:b:c'], 
-                  ['medium', 'none', 'a:d'], 
-                  ['large', 'none', 'a:d:e'], 
-                  ['huge', 'none', 'f'], 
-                  ['none', 'none', 'g']
+                  ['small', 'none', False, 'a:b:c', 'c'], 
+                  ['medium', 'none', False, 'a:d', 'd'], 
+                  ['large', 'none', False,'a:d:e', 'e'], 
+                  ['huge', 'none', False, 'f', 'f'], 
+                  ['none', 'none', False, 'g', 'g']
                 ]
         for x in range(len(target)):
-            target[x][2] = target[x][2].replace(':',os.sep)
+            target[x][3] = target[x][3].replace(':',os.sep)
 
         cd = classifydir.ClassifiedDir(test_path,True)
         result = cd.dirList()
-        print(target)
-        print(result)
+        print()
+        print("Target: ",target)
+        print("Result: ",result)
         
         self.failUnlessEqual(result,target,"Structure 1 - Did not return correct list")
 
@@ -100,7 +105,9 @@ class DateBatchTestCase(unittest.TestCase):
                         "Structure 1 - Returned wrong total file count")
         self.failUnless(cd.fileCount('medium',None)==2,
                         "Structure 1 - Returned wrong medium file count")
-        self.failUnless(cd.totalSize()==2725,
+        
+        # Need two different size for windows/unix classify line endings
+        self.failUnless(cd.totalSize()==2805 or cd.totalSize()==2785,
                         "Structure 1 - Returned wrong total files size")
         self.failUnless(cd.totalSize('large','secret')==0,
                         "Structure 1 - Returned wrong large secret file size")
@@ -113,35 +120,44 @@ class DateBatchTestCase(unittest.TestCase):
 
     def testStructureTwo (self):
         """Test all protections, no levels undefined, multi level non recurse"""
-        createClassify('','none','none','false')
-        createClassify('a','none','restricted','false')
-        createClassify('ab','none','confidential','false')
-        createClassify('abc','none','secret','false')
-        createClassify('ad','none','secret','true')
-        createClassify('f','none','secret','true')
-        createClassify('g','none','secret','true')
+        createClassify('','none','none','false','false')
+        createClassify('a','none','restricted','false','true','named_a')
+        createClassify('ab','none','confidential','false','true')
+        createClassify('abc','none','secret','false','true')
+        createClassify('ad','none','secret','true','false')
+        createClassify('f','none','restricted','true','false','named_f')
+        createClassify('g','none','secret','true','false')
 
         target = [
-                  ['none', 'none', ''], 
-                  ['none', 'restricted', 'a'], 
-                  ['none', 'confidential', 'a:b'], 
-                  ['none', 'secret', 'a:b:c'], 
-                  ['none', 'secret', 'a:d'], 
-                  #['none', 'secret', 'a:d:e'], 
-                  ['none', 'secret', 'f'], 
-                  ['none', 'secret', 'g']
+                  ['none', 'none', False, '', ''], 
+                  ['none', 'restricted', True, 'a', 'named_a'], 
+                  ['none', 'confidential', True, 'a:b', 'b'], 
+                  ['none', 'secret', True, 'a:b:c', 'c'], 
+                  ['none', 'secret', False, 'a:d', 'd'], 
+                  #['none', 'secret', False, 'a:d:e'], 
+                  ['none', 'restricted', False, 'f', 'named_f'], 
+                  ['none', 'secret', False, 'g', 'g']
                 ]
         for x in range(len(target)):
-            target[x][2] = target[x][2].replace(':',os.sep)
+            target[x][3] = target[x][3].replace(':',os.sep)
 
         cd = classifydir.ClassifiedDir(test_path,False)
         result = cd.dirList()
-        print(target)
-        print(result)
+        print()
+        print("Target: ",target)
+        print("Result: ",result)
         
-        self.failUnlessEqual(result,target,"Structure 2 - Did not return correct list")
-        
+        self.failUnlessEqual(result,target,"Structure 2 - Did not return correct list (incl names)")
 
+        cds = cd.classDirList(None,None)
+        self.failUnless(len(cds)==7,"Structure 2 - Return wrong number of classified directory objects")
+
+        self.failUnless(cds[0].preferredMechanism()=='zip',"Structure 2 - Returned wrong mechanism for zip directory 1")
+        self.failUnless(cds[1].preferredMechanism()=='zip',"Structure 2 - Returned wrong mechanism for zip directory 2")
+        self.failUnless(cds[4].preferredMechanism()=='jxx',"Structure 2 - Returned wrong mechanism for jxx directory")
+        self.failUnless(cds[5].preferredMechanism()=='copy',"Structure 2 - Returned wrong mechanism for copy directory")
+        
+        
         #Also just run some functions to verify no exceptions
         cd.printSummary()
         cd.printTable()
@@ -150,7 +166,7 @@ class DateBatchTestCase(unittest.TestCase):
 
     def testStructureThree (self):
         """Test not specifying underneath non-recursive is failure"""
-        createClassify('a','small','restricted','false')
+        createClassify('a','small','restricted','false','false')
 
         with self.assertRaises(Exception):
             classifydir.ClassifiedDir(test_path,True)
@@ -158,19 +174,19 @@ class DateBatchTestCase(unittest.TestCase):
 
     def testStructureFour (self):
         """Test specifying underneath recursive is failure"""
-        createClassify('a','small','restricted','true')
-        createClassify('abc','medium','restricted','true')
+        createClassify('a','small','restricted','true','false')
+        createClassify('abc','medium','restricted','true','false')
 
         with self.assertRaises(Exception):
             classifydir.ClassifiedDir(test_path,True)
 
 
-    def testBadClassifyComment (self):
+    def testClassifyComment (self):
         """Test comments work in .classify"""        
         file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
         file.write("# Single line comment\n")
         file.write("   # Single line comment not at start\n")
-        file.write("volume=small #Line comment\nprotection=none\nrecurse=true\n")
+        file.write("volume=small #Line comment\nprotection=none\nrecurse=true\ncompress=true\n")
         file.close()
 
         classifydir.ClassifiedDir(test_path,True)
@@ -179,7 +195,7 @@ class DateBatchTestCase(unittest.TestCase):
     def testBadClassifyOne (self):
         """Test missing parameter in .classify"""        
         file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
-        file.write("protection=none\nrecurse=true\n")
+        file.write("protection=none\nrecurse=true\ncompress=false\n")
         file.close()
 
         with self.assertRaises(Exception):
@@ -189,7 +205,7 @@ class DateBatchTestCase(unittest.TestCase):
     def testBadClassifyTwo (self):
         """Test duplicate parameter in .classify"""        
         file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
-        file.write("volume=none\nprotection=none\nvolume=small\nrecurse=true\n")
+        file.write("volume=none\nprotection=none\nvolume=small\nrecurse=true\ncompress=true\n")
         file.close()
 
         with self.assertRaises(Exception):
@@ -199,7 +215,7 @@ class DateBatchTestCase(unittest.TestCase):
     def testBadClassifyThree (self):
         """Test bad setting in .classify"""        
         file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
-        file.write("vollume=none\nprotection=none\nrecurse=true\n")
+        file.write("vollume=none\nprotection=none\nrecurse=true\ncompress=false\n")
         file.close()
 
         with self.assertRaises(Exception):
@@ -209,7 +225,7 @@ class DateBatchTestCase(unittest.TestCase):
     def testBadClassifyFour (self):
         """Test bad value in .classify"""        
         file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
-        file.write("volume=moderate\nprotection=none\nrecurse=true\n")
+        file.write("volume=moderate\nprotection=none\nrecurse=true\ncompress=false\n")
         file.close()
 
         with self.assertRaises(Exception):
@@ -219,7 +235,7 @@ class DateBatchTestCase(unittest.TestCase):
     def testBadClassifyFive (self):
         """Test malformed line in .classify"""        
         file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
-        file.write("volume=\nprotection=none\nrecurse=true\n")
+        file.write("volume=\nprotection=none\nrecurse=true\ncompress=true\n")
         file.close()
 
         with self.assertRaises(Exception):
@@ -227,6 +243,16 @@ class DateBatchTestCase(unittest.TestCase):
 
         
 
-if __name__ == "__main__": unittest.main()
+if __name__ == "__main__": 
+    
+    # This way of running allows quick focus on a particular test by entering the number, or all
+    # tests by just entering "test" 
+    ldr = unittest.TestLoader()
+    
+    #ldr.testMethodPrefix = "testStructureOne"
+    ldr.testMethodPrefix = "test"
+    
+    suite = ldr.loadTestsFromTestCase(DateBatchTestCase)
+    unittest.TextTestRunner(verbosity=2).run(suite)
 
 
