@@ -23,7 +23,7 @@ __author__="Jody"
 MAGIC_FILE=".classify"
 T_T="TOTAL"
 
-settings = {
+required_settings = {
     'volume':[
         ('small','HDD, CF, 4 copies per SD'),
         ('medium','HDD, CF, 2 copies per SD'),
@@ -41,7 +41,14 @@ settings = {
         ('true', 'Apply to child directories'),
         ('false','Do not apply to child directories'),
     ],
-}
+    'compress':[
+        ('true', 'Data will compress successfully'),
+        ('false','Data will not compress significantly'),
+    ],
+} 
+
+optional_settings = ['name']
+
 
 # Status = implicit,explicit,undefined
 
@@ -51,16 +58,26 @@ class ClassifiedDir(object):
     """A class to store and report the classification of a single
     directory, as declared by magic .classify files."""
 
+
+    def classDirList(self,volume=None,protection=None):
+        """Return a list of all child directory classifydir objects
+        filtering to volume and/or protection where specified"""
+        ret = []
+        if self.status == 'explicit' and self.__matches(volume,protection):
+            ret.append(self)
+        for child in self.children:
+            ret += child.classDirList(volume,protection)
+        return ret
+
     
     def dirList(self,volume=None,protection=None):
-        """Return a list of all child directory (volume,protection,rel_path)
+        """Return a list of all child directory (volume,protection,compress,rel_path,name)
         tuples filtering to volume and/or protection where specified"""
         ret = []
         if self.__matches(volume,protection):
-            ret.append([self.volume,self.protection,self.rel_path])
+            ret.append([self.volume,self.protection,self.compress,self.rel_path,self.name])
         for child in self.children:
-            child_dir = child.dirList(volume,protection)
-            ret += child_dir
+            ret += child.dirList(volume,protection)
         return ret
 
     def totalSize(self,volume=None,protection=None):
@@ -94,6 +111,17 @@ class ClassifiedDir(object):
             total += child.dirCount(volume,protection)
         return total
 
+    def preferredMechanism(self):
+        """Return the preferred mechanism for backing up the directory
+        according to the classification and compression: one of
+        jxx or zip or copy"""
+        if self.protection == 'secret' or self.protection == 'confidential':
+            return 'jxx'
+        elif self.compress or not self.recurse:
+            return 'zip'
+        else:
+            return 'copy'
+
     def __matches(self,volume,protection):
         return (self.status != 'undefined' and 
             (volume==None or volume==self.volume) and 
@@ -109,16 +137,21 @@ class ClassifiedDir(object):
             tag = '  -  '
         elif self.status == 'implicit':
             tag = '  >  '
-        elif self.recurse == 'true':
+        elif self.recurse:
             tag = "[{},{}]".format(self.volume[0].upper(),self.protection[0].upper())
         else:
             tag = "({},{})".format(self.volume[0].upper(),self.protection[0].upper())
         
+        if self.base_name != self.name:
+            qname = "{} <{}>".format(self.base_name,self.name)
+        else:
+            qname = self.base_name
+
         if self.size != None:
-            line = "{}{}{}{: <7}{}{}".format("  "*depth,self.base_name," "*(45-len(self.base_name)-depth),
+            line = "{}{}{}{: <7}{}{}".format("  "*depth,qname," "*(45-len(qname)-depth),
                                         self.__humanSize(self.totalSize())," "*(8-depth),tag)
         else:
-            line = "{}{}{}{}".format("  "*depth,self.base_name," "*(50-len(self.base_name)-depth*2),tag)
+            line = "{}{}{}{}".format("  "*depth,qname," "*(50-len(qname)-depth*2),tag)
         
         print(line)
         
@@ -130,8 +163,8 @@ class ClassifiedDir(object):
 
     def printTable(self):
         """Function to print a grid of file/dir count by classification"""
-        protections = [opt[0] for opt in settings['protection']] + [None]
-        volumes = [opt[0] for opt in settings['volume']] + [None]
+        protections = [opt[0] for opt in required_settings['protection']] + [None]
+        volumes = [opt[0] for opt in required_settings['volume']] + [None]
         
         #Calculate the contents of each cell first
         entries = [[('','','')]+[('',T_T,'') if v==None 
@@ -197,6 +230,7 @@ class ClassifiedDir(object):
     def __init__(self,base_path,get_all,rel_path='',parent=None):
         """Initialize all attributes"""
         self.base_name = os.path.basename(rel_path)
+        self.name = self.base_name
         self.rel_path = rel_path
         self.full_path = os.path.join(base_path,rel_path)
         self.children = []
@@ -205,7 +239,7 @@ class ClassifiedDir(object):
 
         #Detect and read the magic file if appropriate
         if os.path.isfile(magic):
-            if parent and parent.status != 'undefined' and parent.recurse == 'true':
+            if parent and parent.status != 'undefined' and parent.recurse:
                 raise Exception("Classification file " + magic +
                                 " inside recursively classified directory")
             self.status = 'explicit'
@@ -215,8 +249,9 @@ class ClassifiedDir(object):
                 self.status = 'undefined'
                 self.volume = 'none'
                 self.protection = 'none'
-                self.recurse = 'false'
-            elif parent.recurse == 'false':
+                self.compress = False
+                self.recurse = False
+            elif not parent.recurse:
                 raise Exception("Directory " + self.full_path + " is inside "
                                 "non-recursive classified directory " +
                                 "but does not contain classification file")
@@ -224,11 +259,12 @@ class ClassifiedDir(object):
                 self.status = 'implicit'
                 self.volume = parent.volume
                 self.protection = parent.protection
+                self.compress = parent.compress
                 self.recurse = parent.recurse
                     
         #If we are recursive and haven't been asked to get everything 
         #this is now good enough
-        self.completed = (get_all or self.status=='undefined' or self.recurse=='false')
+        self.completed = (get_all or self.status=='undefined' or not self.recurse)
         self.size = 0 if get_all else None
         self.file_count = 0 if get_all else None
         
@@ -249,7 +285,7 @@ class ClassifiedDir(object):
     
 
     def __readFile(self):
-        """Adds hash values describing the settings in magic file at path"""
+        """Adds hash values describing the required_settings in magic file at path"""
     
         # First get another function to put each line into a hash
         magic = os.path.join(self.full_path,MAGIC_FILE)
@@ -265,14 +301,19 @@ class ClassifiedDir(object):
             f.close()
         
         #Check the hash contains everything we wanted
-        for setting in settings.keys():
+        for setting in required_settings.keys():
             if setting not in hsh.keys():
                 raise Exception("{} not specified in {}".format(setting,magic))
             
         #Then use it to populate the object
         self.volume     = hsh['volume']
         self.protection = hsh['protection']
-        self.recurse     = hsh['recurse']
+        self.recurse    = hsh['recurse']
+        self.compress   = hsh['compress']
+        if 'name' in hsh.keys():
+            self.name   = hsh['name']
+        else:
+            self.name   = self.base_name
 
 
     def __readLine(self,hsh,line):
@@ -284,13 +325,23 @@ class ClassifiedDir(object):
 
         sections = pre_comment.split('=')
         if len(sections) != 2:
-            raise Exception("Line '" + line + "' not understood")
-        
+            raise Exception("Line '" + line + "' not understood")        
         (setting,value) = [x.strip() for x in sections]
-        if setting not in settings.keys():
-            raise Exception("Unknown setting '{}'".format(setting))
+        
+        # Must not have been used before and must be in optional, or in
+        # required and matching one of the enumerations
         if setting in hsh.keys():
             raise Exception("Duplicate setting for {}".format(setting))
-        if value not in [set[0] for set in settings[setting]]:
-            raise Exception("Invalid value '{}' for {}".format(value,setting))        
-        hsh[setting]=value
+        if setting in required_settings.keys():
+            if value not in [set[0] for set in required_settings[setting]]:
+                raise Exception("Invalid value '{}' for {}".format(value,setting))           
+        elif not setting in optional_settings:
+            raise Exception("Unknown setting '{}'".format(setting))            
+
+        # Do the setting, converting boolean words to true boolean
+        if value == 'true':
+            hsh[setting] = True
+        elif value == 'false':
+            hsh[setting] = False
+        else:
+            hsh[setting]=value
