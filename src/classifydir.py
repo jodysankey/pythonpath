@@ -146,6 +146,8 @@ class ClassifiedDir(object):
             qname = "{} <{}>".format(self.base_name,self.name)
         else:
             qname = self.base_name
+        if not self.completed:
+            qname += " ..."     # Indicates there may be more directories underneath
 
         if self.size != None:
             line = "{}{}{}{: <7}{}{}".format("  "*depth,qname," "*(45-len(qname)-depth),
@@ -157,8 +159,6 @@ class ClassifiedDir(object):
         
         for child in self.children:
             child.__printSummary(depth+1)
-        if not self.completed:
-            print("{}<any extra directories not shown>".format("  "*(depth+1)))
 
 
     def printTable(self):
