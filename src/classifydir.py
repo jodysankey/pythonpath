@@ -272,14 +272,20 @@ class ClassifiedDir(object):
             return
             
         for entry in os.listdir(self.full_path):
-            status = os.stat(os.path.join(self.full_path,entry))
-            if stat.S_ISDIR(status.st_mode):
-                child = ClassifiedDir(base_path,get_all,
-                                      os.path.join(self.rel_path,entry),self)
-                self.children.append(child)
-            elif get_all:
-                self.size += status.st_size
-                self.file_count += 1
+            
+            full_entry = os.path.join(self.full_path,entry)
+            if os.path.islink(full_entry):
+                # Never follow links; it just led to badness, but do report if they are broken
+                if not os.path.exists(os.readlink(full_entry)):
+                    print('<<Path {} is a broken symlink>>'.format(full_entry))
+            else:            
+                status = os.stat(full_entry)
+                if stat.S_ISDIR(status.st_mode):
+                    child = ClassifiedDir(base_path,get_all,os.path.join(self.rel_path,entry),self)
+                    self.children.append(child)
+                elif get_all:
+                    self.size += status.st_size
+                    self.file_count += 1
         self.children.sort(key=operator.attrgetter('full_path'))
 
     
