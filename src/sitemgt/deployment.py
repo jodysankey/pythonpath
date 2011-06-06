@@ -33,7 +33,7 @@ class _ComparisonState(object):
         if not os.path.exists(local_path):
             self.state = _ComparisonState.NO_LOCAL_FILE if os.path.exists(master_path) else _ComparisonState.ERROR
         elif not os.path.exists(master_path):
-            self.state = _ComparisonState.NO_LOCAL_FILE
+            self.state = _ComparisonState.NO_MASTER_FILE
         elif filecmp.cmp(local_path, master_path):
             self.state = _ComparisonState.MATCH
         else:
