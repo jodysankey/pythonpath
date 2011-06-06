@@ -84,7 +84,7 @@ class SiteDescription(object):
 
 
         # Assemble dictionaries of all software component types
-        self.default_cm_repository = x_components.get('default_cm_repository')
+        #self.default_cm_repository = x_components.get('default_cm_repository')
 
         self.languages = makeObjectDictionary(Language,x_languages.findall('*'))    
 

@@ -102,14 +102,6 @@ class CmComponent(Component):
             self.cm_filename = x_element.get('name')
         Component.__init__(self,x_element,type)
 
-    def _classLink(self, siteDescription):
-        """Initialize references to other component/language objects"""
-        Component._classLink(self, siteDescription)
-        # Use the default repository if necessary 
-        if hasattr(self,'cm_location') and not hasattr(self,'cm_repository'):
-            self.cm_repository = siteDescription.default_cm_repository
-            self.url = "svn://" + os.path.join(self.cm_repository,self.cm_location,self.cm_filename)
-
 
 
 

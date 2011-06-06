@@ -11,73 +11,94 @@
 #========================================================
 
 
-#from .general import SiteObject
-from .general import * #@UnusedWildImport
+from .general import SiteObject, GOOD, FAIL, FAULT, DEGD, UNKNOWN
 from .software import RepoApplication, NonRepoApplication
 
 import os
-import subprocess
+#import subprocess
+import time
+import filecmp
 
-class _SvnLocalState(object):
-    """Determines and stores state of a subversion working file"""
-    GOOD = 0
+class _ComparisonState(object):
+    """Determines and stores state of comparison between two files"""
+    MATCH = 0
     ERROR = 1
     NO_LOCAL_FILE = 2
-    ABNORMAL = 3
-    MODIFIED = 4
-    OUT_OF_DATE = 5
+    MASTER_FILE_NEWER = 3
+    LOCAL_FILE_NEWER = 4
+    NO_MASTER_FILE = 5
     
-    def __init__(self,path):
-        """Determine state of supplied path"""
-        self.path = path
-        if not os.path.exists(self.path):
-            self.state = _SvnLocalState.NO_LOCAL_FILE
+    def __init__(self,local_path,master_path):
+        """Determine relative state of supplied path"""
+        if not os.path.exists(local_path):
+            self.state = _ComparisonState.NO_LOCAL_FILE if os.path.exists(master_path) else _ComparisonState.ERROR
+        elif not os.path.exists(master_path):
+            self.state = _ComparisonState.NO_LOCAL_FILE
+        elif filecmp.cmp(local_path, master_path):
+            self.state = _ComparisonState.MATCH
         else:
-            (self.return_code,output) = subprocess.getstatusoutput('svn -vu --non-interactive "{}"'.format(path))
-            self.state_string = output[:9]
-            if self.return_code != 0 :
-                self.state = _SvnLocalState.ERROR
-            else:
-                if self.state_string[1:7] != '      ':  self.state = _SvnLocalState.ABNORMAL
-                elif self.state_string[8] == '*':       self.state = _SvnLocalState.OUT_OF_DATE
-                elif self.state_string[0] == ' ':       self.state = _SvnLocalState.GOOD
-                elif self.state_string[0] == 'M':       self.state = _SvnLocalState.MODIFIED
-                elif self.state_string[0] == 'A':       self.state = _SvnLocalState.MODIFIED
-                elif self.state_string[0] == '?':       self.state = _SvnLocalState.ERROR
-                else:                                   self.state = _SvnLocalState.ABNORMAL
+            local_time = time.ctime(os.path.getmtime(local_path))
+            master_time = time.ctime(os.path.getmtime(master_path))
+            self.state =  _ComparisonState.LOCAL_FILE_NEWER if local_time > master_time else _ComparisonState.MASTER_FILE_NEWER
 
 
-class _SvnRemoteState(object):
-    """Determines and stores state of a subversion repository file"""
-    EXISTS = 0
-    DOES_NOT_EXIST = 1
-    COMM_FAIL = 2
-    
-    def __init__(self,repository,location):
-        """Determine state of supplied location within supplied repository"""
-        self.url = "svn://" + os.path.join(repository,location)
-        retcode = subprocess.getstatusoutput('svn --non-interactive list "{}"'.format(self.url))[0]
-        if retcode == 0:
-            self.state = _SvnRemoteState.EXISTS
-        else:
-            # Could not find that file, but does the mean the file is bad or the whole repository is down?
-            retcode = subprocess.getstatusoutput('svn --non-interactive list "svn://{}"'.format(repository))[0]
-            if retcode == 0:
-                self.state = _SvnRemoteState.DOES_NOT_EXIST
-            else:
-                self.state = _SvnRemoteState.COMM_FAIL
+#class _SvnLocalState(object):
+#    """Determines and stores state of a subversion working file"""
+#    GOOD = 0
+#    ERROR = 1
+#    NO_LOCAL_FILE = 2
+#    ABNORMAL = 3
+#    MODIFIED = 4
+#    OUT_OF_DATE = 5
+#    
+#    def __init__(self,path):
+#        """Determine state of supplied path"""
+#        self.path = path
+#        if not os.path.exists(self.path):
+#            self.state = _SvnLocalState.NO_LOCAL_FILE
+#        else:
+#            (self.return_code,output) = subprocess.getstatusoutput('svn -vu --non-interactive "{}"'.format(path))
+#            self.state_string = output[:9]
+#            if self.return_code != 0 :
+#                self.state = _SvnLocalState.ERROR
+#            else:
+#                if self.state_string[1:7] != '      ':  self.state = _SvnLocalState.ABNORMAL
+#                elif self.state_string[8] == '*':       self.state = _SvnLocalState.OUT_OF_DATE
+#                elif self.state_string[0] == ' ':       self.state = _SvnLocalState.GOOD
+#                elif self.state_string[0] == 'M':       self.state = _SvnLocalState.MODIFIED
+#                elif self.state_string[0] == 'A':       self.state = _SvnLocalState.MODIFIED
+#                elif self.state_string[0] == '?':       self.state = _SvnLocalState.ERROR
+#                else:                                   self.state = _SvnLocalState.ABNORMAL
+#
+#class _SvnRemoteState(object):
+#    """Determines and stores state of a subversion repository file"""
+#    EXISTS = 0
+#    DOES_NOT_EXIST = 1
+#    COMM_FAIL = 2
+#    
+#    def __init__(self,repository,location):
+#        """Determine state of supplied location within supplied repository"""
+#        self.url = "svn://" + os.path.join(repository,location)
+#        retcode = subprocess.getstatusoutput('svn --non-interactive list "{}"'.format(self.url))[0]
+#        if retcode == 0:
+#            self.state = _SvnRemoteState.EXISTS
+#        else:
+#            # Could not find that file, but does the mean the file is bad or the whole repository is down?
+#            retcode = subprocess.getstatusoutput('svn --non-interactive list "svn://{}"'.format(repository))[0]
+#            if retcode == 0:
+#                self.state = _SvnRemoteState.DOES_NOT_EXIST
+#            else:
+#                self.state = _SvnRemoteState.COMM_FAIL
 
-
-class _RepoPackageState(object):
-    """Determines and stores install state of a debian package"""
-    INSTALLED = 0
-    NOT_INSTALLED = 1
-    
-    def __init__(self,package):
-        """Determine state of supplied location within supplied repository"""
-        output = subprocess.check_output("aptitude search '~n^{}$ ~i'".format(package),shell=True)
-        self.state = _RepoPackageState.INSTALLED if len(output) > 1 else _RepoPackageState.NOT_INSTALLED 
-
+#class _RepoPackageState(object):
+#    """Determines and stores install state of a debian package"""
+#    INSTALLED = 0
+#    NOT_INSTALLED = 1
+#    
+#    def __init__(self,package):
+#        """Determine state of supplied location within supplied repository"""
+#        output = subprocess.check_output("aptitude search '~n^{}$ ~i'".format(package),shell=True)
+#        self.state = _RepoPackageState.INSTALLED if len(output) > 1 else _RepoPackageState.NOT_INSTALLED 
 
 
 class Deployment(SiteObject):
@@ -117,9 +138,9 @@ class Deployment(SiteObject):
 
     _possibleStates = {'Installed':GOOD, 'Missing':FAIL, 'PartiallyInstalled':DEGD,
                        'ModifiedLocally':FAULT, 'OutOfDate':DEGD, 'Unknown': UNKNOWN,
-                       'NotLinked':FAULT, 'NotConfigured':DEGD }
+                       'NotConfigured':DEGD }
 
-    def gatherState(self, installed_package_tuples):
+    def gatherState(self, installed_package_tuples, cm_working_root):
         """Determines current state of the deployment, assuming we running on the host"""
         if isinstance(self.component, RepoApplication):
             # For repo apps build a list of installed packages
@@ -141,26 +162,21 @@ class Deployment(SiteObject):
                 self.status = "Unknown"
                 self.error = "No install_location to test for NonRepoApplication"
         else:
-            # For CM based files use subversion
-            local = _SvnLocalState(self.location)
-            if local.state == _SvnLocalState.GOOD:               self.status = "Installed"
-            elif local.state == _SvnLocalState.NO_LOCAL_FILE:    self.status = "Missing"
-            elif local.state == _SvnLocalState.MODIFIED:         self.status = "ModifiedLocally"
-            elif local.state == _SvnLocalState.OUT_OF_DATE:      self.status = "OutOfDate"
-            elif local.state == _SvnLocalState.ABNORMAL:
-                self.status = "Unknown"
-                self.error = "Off nominal subversion local state '{}'".format(local.state_string)
+            # For CM based files check the relative state of the deployed file against the
+            # up to date working copy of the repository
+            cm_working_path = os.path.join(cm_working_root, self.component.cm_location, self.component.cm_filename)
+            cmp = _ComparisonState(self.location,cm_working_path)
+            
+            if cmp.state == _ComparisonState.MATCH:                 self.status = "Installed"
+            elif cmp.state == _ComparisonState.NO_LOCAL_FILE:       self.status = "Missing"
+            elif cmp.state == _ComparisonState.LOCAL_FILE_NEWER:    self.status = "ModifiedLocally"
+            elif cmp.state == _ComparisonState.MASTER_FILE_NEWER:   self.status = "OutOfDate"
+            elif cmp.state == _ComparisonState.NO_MASTER_FILE:      self.status = "NotConfigured"
             else:
-                # If the local file is not versioned if could either not be hooked up to the master
-                # or it could be the way to create a master
-                remote = _SvnRemoteState(self.component.cm_repository,self.component.cm_location)
-                if remote.state == _SvnRemoteState.EXISTS:
-                    self.status = "NotLinked"
-                elif remote.state == _SvnRemoteState.DOES_NOT_EXIST:
-                    self.status = "NotConfigured"
-                else:
-                    self.status = "Unknown"
-                    self.error = "Could not communicate with subversion repository"
+                self.status = "Unknown"
+                self.error = "Neither local or CM copies found"
+    
+
 
     def missingPackages(self):
         """Returns a list of all expected but not installed packages"""

@@ -108,7 +108,7 @@ class Host(Actor):
     
 
     
-    def gatherDeployments(self):
+    def gatherDeployments(self, cm_working_root):
         """Determine the current state of all deployments on this host"""
         #This function only works if we *ARE* the host
         if self.name.lower() != socket.gethostname().lower():
@@ -135,7 +135,7 @@ class Host(Actor):
      
         #Ask each expected deployment to deal with itself, providing the installed_set for speed
         for depl in self.expected_deployments.values():
-            depl.gatherState(installed_packages)
+            depl.gatherState(installed_packages, cm_working_root)
 
 
 class HostGroup(Actor):
