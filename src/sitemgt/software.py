@@ -12,7 +12,7 @@
 
 
 
-from .general import SiteObject
+from .general import SiteObject, GOOD, DEGD, FAIL, FAULT, OFF
 
 import os
 
@@ -28,6 +28,8 @@ class Language(SiteObject):
         for x_app in x_element.findall('Application'):
             self.application_names.append(x_app.get('name'))
 
+    def __str__(self):
+        return self.name
 
 
 class Component(SiteObject):
@@ -39,10 +41,13 @@ class Component(SiteObject):
         """Initialize the object"""      
         # Set basic attributes 
         SiteObject.__init__(self,x_element,type)
-        #Initially just store the dependent names; objects will be linked during linkComponentSet
+        #Initially just store the dependent and relation names; objects will be linked during linkComponentSet
         self.dependencies = {}
         for x_dep in x_element.findall('RequiredComponent'):
             self.dependencies[x_dep.get('name')] = None
+        self.relations = {}
+        for x_dep in x_element.findall('RelatedComponent'):
+            self.relations[x_dep.get('name')] = None
         # Build a temp dictionary of expected deployment locations, and an empty real dictionary
         self.deployments = {}
         self._deployment_targets = {}
@@ -52,9 +57,11 @@ class Component(SiteObject):
 
     def _classLink(self, siteDescription):
         """Initialize references to other component/language objects"""
-        # Go through and set dependencies
+        # Go through and set dependencies and relationships
         for dep_name in sorted(self.dependencies.keys()):
             self.dependencies[dep_name] = siteDescription.components[dep_name]
+        for rel_name in sorted(self.relations.keys()):
+            self.relations[rel_name] = siteDescription.components[rel_name]
 
     def _crossLink(self, siteDescription):
         """Initialize references to other non-component objects"""
@@ -62,6 +69,11 @@ class Component(SiteObject):
         # It will handle decomposing to all hosts in a group if necessary 
         for tgt in self._deployment_targets.keys():
             siteDescription.actors[tgt]._deployComponent(self,self._deployment_targets[tgt])
+
+    def health(self):
+        """Unless overridden the component health is unmonitored"""
+        if self._health is None: self._health = OFF
+        return self._health
 
 
 
@@ -81,7 +93,6 @@ class RepoApplication(Component):
 
 
 
-
 class NonRepoApplication(Component):
     """A software application not installed through an online repository system"""
     def __init__(self, x_element):
@@ -89,6 +100,20 @@ class NonRepoApplication(Component):
         Component.__init__(self, x_element, 'nonrepoapplication')
 
 
+
+
+class OtherFile(Component):
+    """A miscellaneous file not managed through site CM"""
+    def __init__(self, x_element):
+        """Initialize the object"""      
+        Component.__init__(self,x_element,'otherfile')
+        if x_element.get('status') is None: self.status = 'Working'
+
+    _possibleStates = {'Working':GOOD, 'Suspect':FAULT, 'Defective':DEGD}
+
+    def health(self):
+        if self._health is None: self._health = self._possibleStates[self.status]
+        return self._health
 
 
 
@@ -123,6 +148,13 @@ class Script(CmComponent):
         for app_name in self.language.application_names:
             self.dependencies[app_name] = siteDescription.components[app_name]
 
+    _possibleStates = {'NotStarted':FAIL, 'NotFinished':DEGD, 'Working':GOOD,
+                       'Suspect':FAULT, 'Defective':DEGD, 'Dead': FAIL }
+
+    def health(self):
+        if self._health is None: self._health = self._possibleStates[self.status]
+        return self._health
+
 
 
 
@@ -131,3 +163,10 @@ class ConfigFile(CmComponent):
     def __init__(self, x_element):
         """Initialize the object"""      
         CmComponent.__init__(self, x_element, 'configfile')
+        
+    _possibleStates = {'Working':GOOD, 'Suspect':FAULT, 'Defective':DEGD }
+
+    def health(self):
+        if self._health is None: self._health = self._possibleStates[self.status]
+        return self._health
+

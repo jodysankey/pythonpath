@@ -13,10 +13,38 @@
 #Imports
 
 class Health(object):
-    """A simple class to represent and compare high level health state"""
+    """A simple class to represent and compare high level health states"""
     def __init__(self,value,name):
         self.value = value
         self.name = name
+
+    def __str__(self):
+        return self.name
+    
+    def __lt__(self,other):
+        return self.value < other.value
+    def __le__(self,other):
+        return self.value <= other.value
+    def __ge__(self,other):
+        return self.value >= other.value
+    
+
+    @staticmethod
+    def worst(list):
+        """Returns the worst health from the set. Unknown trumps good, fault and off"""
+        top = max(list)
+        if top < DEGD and UNKNOWN in list: return UNKNOWN
+        return top 
+
+    @staticmethod
+    def amortized(list):
+        """Returns an combined health from the set. Generally returns the worst, but Fail
+        mixed with anything better leads to only a Degd. Unknown trumps Good, Fault and Off"""
+        top = max(list)
+        if top < DEGD and UNKNOWN in list: return UNKNOWN
+        if top is FAIL and len([x for x in list if (x>=GOOD and x<=DEGD)])>0 : return DEGD
+        return top 
+
 
 
 UNKNOWN = Health(-2,"unknown")
@@ -35,6 +63,7 @@ class SiteObject(object):
     
     def __init__(self, x_element, type_name):
         """Initialize all XML attributes as properties, and sets a type name"""
+        self._health = None
         self.type = type_name
         for (a_name, a_value) in x_element.items():
             self.__dict__[a_name] = a_value
@@ -71,7 +100,22 @@ class SiteObject(object):
         return lines
 
     
+    def resetHealth(self):
+        """Clears the health attribute"""
+        self._health = None
+
+    def health(self):
+        """Unless overridden we can't know health"""
+        if self._health is None:
+            self._health = UNKNOWN
+        return self._health
+
+    
     def htmlName(self):
         """Return the file name to be used for an associated html"""
         return self.type.lower().replace(' ','_') + "_" + self.name.replace(' ','_') + ".html"
+
+    def htmlClass(self):
+        """Return a class attribute based on the current health"""
+        return ' class="{}"'.format(self.health().name)
 

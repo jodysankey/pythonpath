@@ -8,7 +8,7 @@ __date__ ="$Date:$"
 
 from .deployment import Deployment
 from .sitedescription import SiteDescription
-from .functionality import Capability, SystemRequirement, ActorResponsibility
-from .software import Script, ConfigFile, RepoApplication, NonRepoApplication, Language
+from .functionality import Capability, SystemRequirement, ActorResponsibility, ActorRequirement
+from .software import Script, CmComponent, ConfigFile, RepoApplication, NonRepoApplication, Language, OtherFile
 from .actors import Host, HostGroup, User, UserGroup
 #from .siteobject import SiteObject

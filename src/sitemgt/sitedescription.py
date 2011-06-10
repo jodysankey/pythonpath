@@ -13,11 +13,12 @@
 
 #Imports
 import xml.etree.ElementTree
+import os
 
 #from .siteobject import SiteObject
 from .functionality import Capability
 from .actors import User, Host, UserGroup, HostGroup
-from .software import Script, RepoApplication, NonRepoApplication, ConfigFile, Language
+from .software import Script, RepoApplication, NonRepoApplication, ConfigFile, OtherFile, Language
 
 __author__="Jody"
 __date__ ="$Date:$"
@@ -84,8 +85,6 @@ class SiteDescription(object):
 
 
         # Assemble dictionaries of all software component types
-        #self.default_cm_repository = x_components.get('default_cm_repository')
-
         self.languages = makeObjectDictionary(Language,x_languages.findall('*'))    
 
         self.applications = makeObjectDictionary(RepoApplication,x_components.findall('RepoApplication'))    
@@ -93,14 +92,13 @@ class SiteDescription(object):
         self.applications.update(makeObjectDictionary(NonRepoApplication,x_components.findall('NonRepoApplication')))   
         self.scripts =      makeObjectDictionary(Script,x_components.findall('Script'))    
         self.config_files = makeObjectDictionary(ConfigFile,x_components.findall('ConfigurationFile'))
-        self.components = mergeDictionaries([self.applications, self.scripts, self.config_files])
-
+        self.other_files =  makeObjectDictionary(OtherFile,x_components.findall('OtherFile'))
+        self.components =   mergeDictionaries([self.applications, self.scripts, self.config_files, self.other_files])
 
         # Create then link capabilities
         self.capabilities = makeObjectDictionary(Capability,x_func.findall('Capability'))
         for cap in self.capabilities.values():
             cap._crossLink(self)
-
 
         # Link components to each other and other objects
         for cpt in self.components.values():
@@ -111,7 +109,12 @@ class SiteDescription(object):
         for actor in self.actors.values():
             actor._crossLink(self)
         
-        
+    def loadDeploymentStatus(self, filename_format):
+        """Loads deployment files for every host with a file matching filename_format"""
+        for host in self.hosts.values():
+            host.resetDeploymentStatus()
+            if os.path.exists(filename_format.format(host.name)):
+                host.loadDeploymentStatus(filename_format.format(host.name))
 
     def __str__(self):
         """Return a string representation"""

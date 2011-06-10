@@ -12,12 +12,15 @@
 #========================================================
 
 
-from .general import SiteObject
-from .functionality import ActorRequirement
-from .deployment import Deployment
+from .general import SiteObject, Health, FAIL, DEGD, FAULT, UNKNOWN, OFF, GOOD
+
+import sitemgt
 
 import socket
 import subprocess
+import datetime
+import tagwriter
+import xml.etree.ElementTree
 
 
 class Actor(SiteObject):
@@ -43,7 +46,7 @@ class Actor(SiteObject):
         self.requirements = {}
         if x_functionality is not None:
             for x_req in x_functionality.findall('*'):
-                req = ActorRequirement(x_req, self)
+                req = sitemgt.ActorRequirement(x_req, self)
                 self.requirements[req.uid] = req
 
     def _classLink(self, siteDescription):
@@ -64,18 +67,31 @@ class Actor(SiteObject):
             req._crossLink(siteDescription)
             self._deployRequirement(req)
 
+    def isHostSet(self):
+        """Returns true if this actor is a host or host group"""
+        return isinstance(self, Host) or isinstance(self, HostGroup)
+
+    def isGroup(self):
+        """Returns true if this actor is a group or users or hosts"""
+        return hasattr(self,'members')
         
     def _deployRequirement(self, requirement):
         """Document the deployment of all components needed by a requirement"""
         # More specific types of actor can override this with their own values
         pass
+
+    def health(self):
+        """Unless overridden the actor health is unmonitored"""
+        if self._health is None: self._health = OFF
+        return self._health
+
     
     
     
 def _splitAptitudeLine(line):
     """Splits an aptitude output line into its package name and package description"""
     pos = line.find('- ')
-    return [line[4:pos].strip(),line[pos+2:].strip()]
+    return [line[4:pos].strip(),line[pos+2:].strip().replace('"','')]
 
 
 class Host(Actor):
@@ -94,7 +110,7 @@ class Host(Actor):
                 self.expected_deployments[component.name]._addRequirement(requirement)
             else:
                 # Must create a new deployment
-                depl = Deployment(self, component)
+                depl = sitemgt.Deployment(self, component)
                 depl._addRequirement(requirement)
     
     def _deployComponent(self, component, location):
@@ -104,15 +120,16 @@ class Host(Actor):
             self.expected_deployments[component.name].location = location
         else:
             # Must create a new deployment (it will link itself to us)
-            Deployment(self, component, location)
+            sitemgt.Deployment(self, component, location)
     
 
-    
-    def gatherDeployments(self, cm_working_root):
+    def gatherDeploymentStatus(self, cm_working_root):
         """Determine the current state of all deployments on this host"""
         #This function only works if we *ARE* the host
         if self.name.lower() != socket.gethostname().lower():
             raise Exception("Can only gather deployments for current host ({}), not {}".format(socket.gethostname(), self.name))
+        
+        self.resetDeploymentStatus();
         
         #Build a list unexpected packages (i.e. installed, orphan, but not expected)
         expected_packages = []
@@ -135,8 +152,90 @@ class Host(Actor):
      
         #Ask each expected deployment to deal with itself, providing the installed_set for speed
         for depl in self.expected_deployments.values():
-            depl.gatherState(installed_packages, cm_working_root)
+            depl.gatherStatus(installed_packages, cm_working_root)
 
+        self.status_date = datetime.datetime.today()
+
+
+    def saveDeploymentStatus(self, filename):
+        """Dumps the current component deployment status using an XML tag writer object on the specified file"""
+        tag_writer = tagwriter.TagWriter(filename)
+        tag_writer.open('DeploymentStatus')
+        tag_writer.open('Host','name="{}" date="{}"'.format(self.name, self.status_date.strftime("%Y-%m-%d %H:%M")))
+
+        for depl in self.expected_deployments.values():
+            depl.saveStatus(tag_writer)            
+        for pkg in self.upgradable_packages:
+            tag_writer.write('Upgradable','name="{}" description="{}"'.format(pkg[0],pkg[1]))
+        for pkg in self.unexpected_packages:
+            tag_writer.write('Unexpected','name="{}" description="{}"'.format(pkg[0],pkg[1]))
+
+        tag_writer.close(2)
+
+
+    def resetDeploymentStatus(self):      
+        """Clears all existing component deployment information"""
+        self.resetHealth()
+        if hasattr(self,'status'): 
+            delattr(self,'status')
+        if hasattr(self,'status_date'): 
+            delattr(self,'status_date')
+        if hasattr(self,'upgradable_packages'): 
+            delattr(self,'upgradable_packages')
+        if hasattr(self,'unexpected_packages'): 
+            delattr(self,'unexpected_packages')
+        for depl in self.expected_deployments.values():
+            depl.resetStatus()            
+
+        
+    def loadDeploymentStatus(self, filename):      
+        """Load the component deployment status from the named file, using an XML ElementTree"""
+
+        self.resetDeploymentStatus()
+        
+        # Find root element and check it is for the correct host
+        book = xml.etree.ElementTree.parse(filename).getroot()
+        x_host = book.find('Host')
+        if x_host.get('name') == self.name:
+            self.status_date = datetime.datetime.strptime(x_host.get('date'), "%Y-%m-%d %H:%M")
+            
+            for x_d in x_host.findall('Deployment'):
+                if x_d.get('name') in self.expected_deployments.keys():
+                    self.expected_deployments[x_d.get('name')].loadStatus(x_d)
+
+            self.upgradable_packages = [(p.get('name'),p.get('description')) for p in x_host.findall('Upgradable')]
+            self.unexpected_packages = [(p.get('name'),p.get('description')) for p in x_host.findall('Unexpected')]
+ 
+ 
+    def health(self):
+        """Determines health of the host, based on state of its software deployments.
+        Note this function sets status"""
+
+        if self._health is None:
+            # Typically our state is based only on the deployments
+            if len(self.expected_deployments) == 0:
+                self._health = GOOD
+                self.status = "NoDeployments"
+            else:
+                self._health = Health.amortized([d.health() for d in self.expected_deployments.values()])
+                if self._health is UNKNOWN:
+                    self.status = "UnknownDeploymentState"
+                elif self._health is OFF: #Dont see how this could happen
+                    self.status = "UnmonitoredDeployments"
+                elif self._health in [FAIL, DEGD, FAULT]:
+                    self.status = "DeploymentProblem"
+                else:
+                    self.status = "Good"
+
+            # But if they look ok, check our off nominal packages
+            if self._health is GOOD:
+                if hasattr(self,'upgradable_packages') and len(self.upgradable_packages)>0:
+                    self.status = "PackagesNeedUpgrade"
+                    self._health = FAULT
+                elif hasattr(self,'upgradable_packages') and len(self.upgradable_packages)>0:
+                    self.status = "UnexpectedPackages"
+                    self._health = FAULT
+        return self._health
 
 class HostGroup(Actor):
     """A collections of computers within the site"""

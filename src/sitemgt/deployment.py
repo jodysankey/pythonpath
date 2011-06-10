@@ -11,11 +11,12 @@
 #========================================================
 
 
-from .general import SiteObject, GOOD, FAIL, FAULT, DEGD, UNKNOWN
-from .software import RepoApplication, NonRepoApplication
+from .general import SiteObject, Health, GOOD, FAIL, FAULT, DEGD, UNKNOWN
+
+#from .software import RepoApplication, NonRepoApplication
+import sitemgt
 
 import os
-#import subprocess
 import time
 import filecmp
 
@@ -107,10 +108,11 @@ class Deployment(SiteObject):
 
     def __init__(self, host, component, location = None):
         """Initialize object"""
-        # Initialize bi directional linkages
         self.type = 'deployment'
-        self.name = component.name + '>>' + host.name
+        self.status = "Unknown"
+        self.name = component.name + '@' + host.name
         self.requirements = {}
+        # Initialize bi directional linkages
         self.host = host
         host.expected_deployments[component.name] = self
         self.component = component
@@ -125,6 +127,7 @@ class Deployment(SiteObject):
         """Link the Deployment as being driven by the specified requirement"""
         self.requirements[requirement.uid] = requirement
         requirement.components[self.component.name] = self.component
+        requirement.deployments[self.name] = self
     
     def locationDescription(self):
         """Returns a string assessment of the deployment location""" 
@@ -138,11 +141,47 @@ class Deployment(SiteObject):
 
     _possibleStates = {'Installed':GOOD, 'Missing':FAIL, 'PartiallyInstalled':DEGD,
                        'ModifiedLocally':FAULT, 'OutOfDate':DEGD, 'Unknown': UNKNOWN,
-                       'NotConfigured':DEGD }
+                       'NotConfigured':DEGD, 'DependencyProblem':''}
 
-    def gatherState(self, installed_package_tuples, cm_working_root):
+   
+    def health(self):
+        """Determines health of the deployment, based on own state and dependents.
+        Note this function may change status, if dependents drive health"""
+
+        if self._health is None:
+            # While we may be recursing set our own health to the native value 
+            self._health = self._possibleStates[self.status]
+            
+            #Now see if any dependent is worst than we are
+            for dep_name in self.component.dependencies.keys():
+                if dep_name in self.host.expected_deployments:
+                    dep_health = self.host.expected_deployments[dep_name].health()
+                    if Health.worst(dep_health,self._health) is not self._health:
+                        self._health = Health.worst(dep_health,self._health)
+                        self.status = "DependencyProblem"
+        return self._health
+
+
+    def functionalHealth(self):
+        """Returns the functional health of the deployment, i.e. the worst of the component
+        and the installation of the component"""
+        if Health.worst([self.component.health(),self.health()]) is not self.health():
+            return self.component.health()
+        else:
+            return self.health()
+
+    def functionalStatus(self):
+        """Returns the functional status of the deployment, i.e. the worst of the component
+        and the installation of the component"""
+        if Health.worst([self.component.health(),self.health()]) is not self.health():
+            return "Component " + self.component.status
+        else:
+            return self.status
+
+
+    def gatherStatus(self, installed_package_tuples, cm_working_root):
         """Determines current state of the deployment, assuming we running on the host"""
-        if isinstance(self.component, RepoApplication):
+        if isinstance(self.component, sitemgt.RepoApplication):
             # For repo apps build a list of installed packages
             self.installed_packages = list(set(self.component.package) & set([t[0] for t in installed_package_tuples]))
             if len(self.installed_packages) == len(self.component.package):
@@ -151,7 +190,7 @@ class Deployment(SiteObject):
                 self.status = "Missing"
             else:
                 self.status = "PartiallyInstalled"
-        elif isinstance(self.component, NonRepoApplication):
+        elif isinstance(self.component, sitemgt.NonRepoApplication):
             # For non repo apps can only check existence of a path 
             if hasattr(self.component,"install_location"):
                 if os.path.exists(self.component.install_location):
@@ -175,13 +214,45 @@ class Deployment(SiteObject):
             else:
                 self.status = "Unknown"
                 self.error = "Neither local or CM copies found"
-    
 
 
+    def resetStatus(self):
+        """Resets the current status to Unknown"""
+        self.status = "Unknown"
+        self.resetHealth()
+        if hasattr(self,'error'): delattr(self,'error')
+        if hasattr(self,'installed_packages'): delattr(self,'installed_packages')
+        
+    def saveStatus(self, tag_writer):
+        """Dumps the current status into the supplied XML tag writer object"""
+        if hasattr(self,'status'):
+            attributes = 'name="{}" status="{}"'.format(self.component.name, self.status)
+            if hasattr(self,'error'): attributes += ' error="{}"'.format(self.error)
+            tag_writer.open('Deployment',attributes)
+            if hasattr(self,'installed_packages'):
+                for pkg in self.installed_packages:
+                    tag_writer.write('Installed','name="{}"'.format(pkg))
+            tag_writer.close()
+        
+    def loadStatus(self,x_element):      
+        """Load the current status from the supplied XML element object"""
+        self.resetStatus()
+        if x_element.get('status') is not None:
+            self.status = x_element.get('status')
+            if x_element.get('error') is not None:
+                self.error = x_element.get('error')
+            if isinstance(self.component, sitemgt.RepoApplication):
+                self.installed_packages = [x_i.get('name') for x_i in x_element.findall('Installed')]
+ 
     def missingPackages(self):
         """Returns a list of all expected but not installed packages"""
         if hasattr(self,'installed_packages'):
             return list(set(self.component.package) - set(self.installed_packages))
         else:
             return []
+
+    def verboseStatus(self):
+        """Returns a status string including the error where one exists"""
+        return self.status + (" ({})".format(self.error) if hasattr(self,'error') else '')
+    
         
