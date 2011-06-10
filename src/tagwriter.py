@@ -17,7 +17,8 @@ class TagWriter(object):
     def __init__(self,filename):
         self.__f = open(filename,'w')
         self.__stack = []
-    def __self__(self):
+        self.filename = filename
+    def __del__(self):
         self.__f.close()
         
     def write(self,tag,attributes='',text=''): 
@@ -25,15 +26,20 @@ class TagWriter(object):
             self.__f.write("<{}>{}</{}>\n".format(tag,text,tag))
         else:
             self.__f.write("<{} {}>{}</{}>\n".format(tag,attributes,text,tag))
+    
     def writeText(self,text): 
         self.__f.write(text)
+
     def open(self,tag,attributes=''):
         if attributes=='':
             self.__f.write("<{}>\n".format(tag))
         else:
             self.__f.write("<{} {}>\n".format(tag,attributes))
         self.__stack.append("</{}>\n".format(tag))
-    def close(self): 
-        self.__f.write(self.__stack.pop())
 
+    def close(self,count=1): 
+        for i in range(count): #@UnusedVariable
+            self.__f.write(self.__stack.pop())
 
+    def depth(self):
+        return len(self.__stack)
