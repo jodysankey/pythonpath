@@ -26,7 +26,7 @@ import xml.etree.ElementTree
 class Actor(SiteObject):
     """A high level site capability"""
     
-    _expand_dicts = [['members', 'groups', 'responsibilities', 'requirements', 'expected_deployments']]
+    _expand_dicts = [['members', 'groups', 'responsibility_dict', 'requirement_dict', 'expected_deployments']]
     _expand_objects = []
 
     def __init__(self, x_definition, x_functionality, is_group, type):
@@ -232,9 +232,9 @@ class Host(Actor):
                 if hasattr(self,'upgradable_packages') and len(self.upgradable_packages)>0:
                     self.status = "PackagesNeedUpgrade"
                     self._health = FAULT
-                elif hasattr(self,'upgradable_packages') and len(self.upgradable_packages)>0:
+                elif hasattr(self,'unexpected_packages') and len(self.unexpected_packages)>0:
                     self.status = "UnexpectedPackages"
-                    self._health = FAULT
+                    self._health = GOOD
         return self._health
 
 class HostGroup(Actor):

@@ -36,6 +36,12 @@ def makeObjectDictionary(class_type, x_elements):
         out[x_el.get('name')] = class_type(x_el)
     return out
 
+def makeObjectList(class_type, x_elements):
+    out = []
+    for x_el in x_elements:
+        out.append(class_type(x_el))
+    return out
+
 def makeActorDictionary(class_type, x_elements, supplements):
     out = {}
     for x_el in x_elements:
@@ -77,10 +83,10 @@ class SiteDescription(object):
         # Assemble dictionary of all actors  
         self.actors = mergeDictionaries([self.users, self.user_groups, self.hosts, self.host_groups])
 
-        # Assemble dictionary of all actors requirements and link actors to each other
-        self.actor_requirements = {}
+        # Assemble dictionary of all actors requirement_dict and link actors to each other
+        self.actor_requirement_dict = {}
         for actor in self.actors.values():
-            self.actor_requirements.update(actor.requirements)
+            self.actor_requirement_dict.update(actor.requirements)
             actor._classLink(self)
 
 
@@ -96,8 +102,8 @@ class SiteDescription(object):
         self.components =   mergeDictionaries([self.applications, self.scripts, self.config_files, self.other_files])
 
         # Create then link capabilities
-        self.capabilities = makeObjectDictionary(Capability,x_func.findall('Capability'))
-        for cap in self.capabilities.values():
+        self.capabilities = makeObjectList(Capability,x_func.findall('Capability'))
+        for cap in self.capabilities:
             cap._crossLink(self)
 
         # Link components to each other and other objects
@@ -136,7 +142,7 @@ class SiteDescription(object):
 
 if __name__ == '__main__':
     # Test Script
-    sd = SiteDescription("/home/jody/files/computing/requirements/SiteDescription.xml")
+    sd = SiteDescription("/home/jody/files/computing/requirement_dict/SiteDescription.xml")
 
     
     

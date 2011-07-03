@@ -51,6 +51,7 @@ class Component(SiteObject):
         # Build a temp dictionary of expected deployment locations, and an empty real dictionary
         self.deployments = {}
         self._deployment_targets = {}
+        self.requirements = {}
         for x_d in x_element.findall('Deployment'):
             path = os.path.join(x_d.get('directory'), self.cm_filename if x_d.get('filename') is None else x_d.get('filename'))
             self._deployment_targets[x_d.get('host_set')] = path
@@ -107,7 +108,8 @@ class OtherFile(Component):
     def __init__(self, x_element):
         """Initialize the object"""      
         Component.__init__(self,x_element,'otherfile')
-        if x_element.get('status') is None: self.status = 'Working'
+        if x_element.get('status') is None:     self.status = 'Working'
+        if x_element.get('filename') is None:   self.filename = x_element.get('name')
 
     _possibleStates = {'Working':GOOD, 'Suspect':FAULT, 'Defective':DEGD}
 

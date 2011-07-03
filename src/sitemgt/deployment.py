@@ -126,6 +126,7 @@ class Deployment(SiteObject):
     def _addRequirement(self,requirement):
         """Link the Deployment as being driven by the specified requirement"""
         self.requirements[requirement.uid] = requirement
+        self.component.requirements[requirement.uid] = requirement
         requirement.components[self.component.name] = self.component
         requirement.deployments[self.name] = self
     
@@ -156,7 +157,7 @@ class Deployment(SiteObject):
             for dep_name in self.component.dependencies.keys():
                 if dep_name in self.host.expected_deployments:
                     dep_health = self.host.expected_deployments[dep_name].health()
-                    if Health.worst(dep_health,self._health) is not self._health:
+                    if Health.worst([dep_health,self._health]) is not self._health:
                         self._health = Health.worst(dep_health,self._health)
                         self.status = "DependencyProblem"
         return self._health
@@ -200,6 +201,12 @@ class Deployment(SiteObject):
             else:
                 self.status = "Unknown"
                 self.error = "No install_location to test for NonRepoApplication"
+        elif isinstance(self.component, sitemgt.OtherFile):
+            # For non other files can only check existence of a path 
+            if os.path.exists(os.path.join(self.component.directory,self.component.filename)):
+                self.status = "Installed"
+            else:
+                self.status = "Missing"
         else:
             # For CM based files check the relative state of the deployed file against the
             # up to date working copy of the repository
