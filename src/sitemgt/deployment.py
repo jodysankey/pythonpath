@@ -38,8 +38,8 @@ class _ComparisonState(object):
         elif filecmp.cmp(local_path, master_path):
             self.state = _ComparisonState.MATCH
         else:
-            local_time = time.ctime(os.path.getmtime(local_path))
-            master_time = time.ctime(os.path.getmtime(master_path))
+            local_time = os.path.getmtime(local_path)
+            master_time = os.path.getmtime(master_path)
             self.state =  _ComparisonState.LOCAL_FILE_NEWER if local_time > master_time else _ComparisonState.MASTER_FILE_NEWER
 
 
