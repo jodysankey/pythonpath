@@ -17,7 +17,6 @@ from .general import SiteObject, Health, GOOD, FAIL, FAULT, DEGD, UNKNOWN
 import sitemgt
 
 import os
-import time
 import filecmp
 
 class _ComparisonState(object):
@@ -102,6 +101,7 @@ class _ComparisonState(object):
 #        self.state = _RepoPackageState.INSTALLED if len(output) > 1 else _RepoPackageState.NOT_INSTALLED 
 
 
+
 class Deployment(SiteObject):
     """Represents a deployment of a software component onto a hardware host, initialized either
     manually (if inferred from a requirement), or from an XML object (if explicit in XML)"""
@@ -111,7 +111,8 @@ class Deployment(SiteObject):
         self.type = 'deployment'
         self.status = "Unknown"
         self.name = component.name + '@' + host.name
-        self.requirements = {}
+        self.primary_requirements = {}
+        self.secondary_requirements = {}
         # Initialize bi directional linkages
         self.host = host
         host.expected_deployments[component.name] = self
@@ -123,9 +124,17 @@ class Deployment(SiteObject):
         elif hasattr(self.component, 'installLocation'):
             self.location = self.component.installLocation
     
-    def _addRequirement(self,requirement):
-        """Link the Deployment as being driven by the specified requirement"""
-        self.requirements[requirement.uid] = requirement
+    def _addRequirement(self,requirement,primary):
+        """Link the Deployment as being driven by the specified requirement, 
+        upgrading secondary status to primary if necessary"""
+
+        if primary:
+            self.primary_requirements[requirement.uid] = requirement
+            if requirement.uid in self.secondary_requirements:
+                del self.secondary_requirements[requirement.uid]
+        elif requirement.uid not in self.primary_requirements:
+            self.secondary_requirements[requirement.uid] = requirement
+            
         self.component.requirements[requirement.uid] = requirement
         requirement.components[self.component.name] = self.component
         requirement.deployments[self.name] = self
@@ -158,7 +167,7 @@ class Deployment(SiteObject):
                 if dep_name in self.host.expected_deployments:
                     dep_health = self.host.expected_deployments[dep_name].health()
                     if Health.worst([dep_health,self._health]) is not self._health:
-                        self._health = Health.worst(dep_health,self._health)
+                        self._health = Health.worst([dep_health,self._health])
                         self.status = "DependencyProblem"
         return self._health
 
@@ -202,8 +211,14 @@ class Deployment(SiteObject):
                 self.status = "Unknown"
                 self.error = "No install_location to test for NonRepoApplication"
         elif isinstance(self.component, sitemgt.OtherFile):
-            # For non other files can only check existence of a path 
+            # For other files we can only check existence of a path
             if os.path.exists(os.path.join(self.component.directory,self.component.filename)):
+                self.status = "Installed"
+            else:
+                self.status = "Missing"
+        elif not self.component.default_repository:
+            # For configured files outside the default repository we can only check existence of a path
+            if os.path.exists(self.location):
                 self.status = "Installed"
             else:
                 self.status = "Missing"

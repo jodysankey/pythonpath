@@ -121,16 +121,17 @@ class ActorRequirement(SiteObject):
 
         # Mark dictionary with blanks until link attaches them
         self.system_requirements = {}
+        self.primary_components = {}
         self.components = {}
         self.deployments = {}
         for x_cmp in x_element.findall('Component'):
-            self.components[x_cmp.get('name')] = None
+            self.primary_components[x_cmp.get('name')] = None
 
     def _crossLink(self, siteDescription):
         """Initialize references to other objects within the site description"""
-        for cmp_name in sorted(self.components.keys()):
+        for cmp_name in sorted(self.primary_components.keys()):
             cmp = siteDescription.components[cmp_name]
-            self.components[cmp_name] = cmp
+            self.primary_components[cmp_name] = cmp
     
     def htmlName(self):
         """Overridden to include a target within the actor page"""

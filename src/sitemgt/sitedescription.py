@@ -64,9 +64,10 @@ class SiteDescription(object):
         x_languages = book.find('Software').find('ScriptingLanguages')
         x_components = book.find('Software').find('Components')
 
+        self.default_repository = x_components.get('default_repository')
+
         # Note the order in which different object types are linked is important
         # since there are a (small number) of assumptions about what exists first 
-
 
         #Prebuild a dictionary of functional references for every actor
         actor_x_funcs = {}

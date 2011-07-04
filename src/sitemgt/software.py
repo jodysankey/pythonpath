@@ -52,6 +52,7 @@ class Component(SiteObject):
         self.deployments = {}
         self._deployment_targets = {}
         self.requirements = {}
+        self.dependers = {}
         for x_d in x_element.findall('Deployment'):
             path = os.path.join(x_d.get('directory'), self.cm_filename if x_d.get('filename') is None else x_d.get('filename'))
             self._deployment_targets[x_d.get('host_set')] = path
@@ -60,7 +61,7 @@ class Component(SiteObject):
         """Initialize references to other component/language objects"""
         # Go through and set dependencies and relationships
         for dep_name in sorted(self.dependencies.keys()):
-            self.dependencies[dep_name] = siteDescription.components[dep_name]
+            self._registerDependency(siteDescription.components[dep_name])
         for rel_name in sorted(self.relations.keys()):
             self.relations[rel_name] = siteDescription.components[rel_name]
 
@@ -70,6 +71,11 @@ class Component(SiteObject):
         # It will handle decomposing to all hosts in a group if necessary 
         for tgt in self._deployment_targets.keys():
             siteDescription.actors[tgt]._deployComponent(self,self._deployment_targets[tgt])
+
+    def _registerDependency(self, depended_component):
+        """Adds a bidirectionaly dependency link from self to depended_component"""
+        self.dependencies[depended_component.name] = depended_component
+        depended_component.dependers[self.name] = self
 
     def health(self):
         """Unless overridden the component health is unmonitored"""
@@ -129,7 +135,17 @@ class CmComponent(Component):
             self.cm_filename = x_element.get('name')
         Component.__init__(self,x_element,type)
 
+    def _classLink(self, siteDescription):
+        """Initialize references to other component/language objects"""
+        Component._classLink(self, siteDescription)
+        # If we dont have our own repository, use the default
+        if not hasattr(self,'cm_repository'):
+            self.cm_repository = siteDescription.default_repository
+        self.default_repository = (self.cm_repository == siteDescription.default_repository)
 
+    def url(self):
+        #Returns a url for the subversion repository
+        return os.path.join('svn://'+self.cm_repository, self.cm_location, self.cm_filename)
 
 
 class Script(CmComponent):
@@ -148,7 +164,7 @@ class Script(CmComponent):
         # Now set language and any additional dependencies it incurs 
         self.language = siteDescription.languages[self.language]
         for app_name in self.language.application_names:
-            self.dependencies[app_name] = siteDescription.components[app_name]
+            self._registerDependency(siteDescription.components[app_name])
 
     _possibleStates = {'NotStarted':FAIL, 'NotFinished':DEGD, 'Working':GOOD,
                        'Suspect':FAULT, 'Defective':DEGD, 'Dead': FAIL }

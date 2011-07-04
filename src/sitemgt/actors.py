@@ -102,16 +102,24 @@ class Host(Actor):
         Actor.__init__(self, x_definition, x_functionality, False, 'host')
         self.expected_deployments = {}
 
+    def _deployRequiredComponent(self, component, requirement, primary):
+        """Document the need for a component due to a requirement"""
+        if component.name in self.expected_deployments.keys():
+            # If this deployment is already linked to the host, just add the requirement
+            self.expected_deployments[component.name]._addRequirement(requirement, primary)
+        else:
+            # Must create a new deployment
+            depl = sitemgt.Deployment(self, component)
+            depl._addRequirement(requirement, primary)
+        # Now mark this same requirement as secondary for any components necessary to support this component
+        for dep_component in component.dependencies.values():
+            self._deployRequiredComponent(dep_component, requirement, False)
+
     def _deployRequirement(self, requirement):
         """Document the deployment of all components needed by a requirement"""
-        for component in requirement.components.values():
-            if component.name in self.expected_deployments.keys():
-                # If this deployment is already linked to the host, just add the requirement
-                self.expected_deployments[component.name]._addRequirement(requirement)
-            else:
-                # Must create a new deployment
-                depl = sitemgt.Deployment(self, component)
-                depl._addRequirement(requirement)
+        for component in requirement.primary_components.values():
+            # Any component directly related to a requirement is primary
+            self._deployRequiredComponent(component, requirement, True)
     
     def _deployComponent(self, component, location):
         """Document the deployment of a component to a location"""
