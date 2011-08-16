@@ -222,6 +222,10 @@ class Deployment(SiteObject):
                 self.status = "Installed"
             else:
                 self.status = "Missing"
+        elif not hasattr(self,'location'):
+            # Being a CM file without an expected deployment location is an error
+            self.status = "Unknown"
+            self.error = "No deployment path specified"
         else:
             # For CM based files check the relative state of the deployed file against the
             # up to date working copy of the repository
