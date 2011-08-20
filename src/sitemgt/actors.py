@@ -146,6 +146,7 @@ class Host(Actor):
 
         raw_orphaned = subprocess.check_output(['debfoster','-ns']).decode('utf-8')
         orphaned_packages = raw_orphaned[raw_orphaned.find('\n')+1:].split()
+        orphaned_packages = [p for p in orphaned_packages if not p.startswith('linux-headers-') and not p.startswith('linux-image-')]        
         raw_installed = subprocess.check_output(['aptitude','search','~i']).decode('utf-8')[:-1]
         installed_packages = [_splitAptitudeLine(ln) for ln in raw_installed.split('\n')]
         self.unexpected_packages = []
