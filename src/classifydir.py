@@ -6,6 +6,8 @@
 # $Revision: 742 $
 # $Date: 2009-12-28 02:23:37 -0600 (Mon, 28 Dec 2009) $
 #========================================================
+# PublicPermissions: True
+#========================================================
 # Class to build a hierarchy of directories with 
 # information about how they should be backed up, 
 # as determined by .classify files

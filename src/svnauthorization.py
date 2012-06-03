@@ -6,6 +6,8 @@
 # $Revision: 742 $
 # $Date: 2009-12-28 02:23:37 -0600 (Mon, 28 Dec 2009) $
 #========================================================
+# PublicPermissions: True
+#========================================================
 # Simple class to gather authority to access the 
 # subversion repositories, either by reading the standard
 # file or by prompting the user

@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
+# PublicPermissions: True
 
 __all__ = ["actors", "deployment", "functionality", "software", "sitedescription"]
 

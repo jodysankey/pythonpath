@@ -6,6 +6,8 @@
 # $Revision: 742 $
 # $Date: 2009-12-28 02:23:37 -0600 (Mon, 28 Dec 2009) $
 #========================================================
+# PublicPermissions: True
+#========================================================
 # SiteDescription class to parse standard format XML 
 # file and create a matching Python representation, based
 # mainly on classes derived from SiteObject 

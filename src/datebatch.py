@@ -6,6 +6,8 @@
 # $Revision$
 # $Date$
 #========================================================
+# PublicPermissions: True
+#========================================================
 # DateBatcher class to call specified functions at date
 # based intervals, equivalent to DateBatch.exe
 #========================================================

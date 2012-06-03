@@ -6,6 +6,8 @@
 # $Revision: 742 $
 # $Date: 2009-12-28 02:23:37 -0600 (Mon, 28 Dec 2009) $
 #========================================================
+# PublicPermissions: True
+#========================================================
 # Classes to represent the software components within a
 # site and their deployment onto hardware hosts
 #========================================================
