@@ -70,9 +70,9 @@ class CheckOutcome(object):
         self.description = description.replace(',','-') #Note we avoid commas for simpler parsing
     
     def valueOrString(self, s):
-        return s if self.value is None else self.value
+        return s if self.value is None else str(self.value)
     def thresholdOrString(self, s):
-        return s if self.threshold is None else self.threshold
+        return s if self.threshold is None else str(self.threshold)
     def outcome(self):
         return 'PASS' if self.success else 'FAIL'
 
