@@ -14,14 +14,14 @@
 #========================================================
 
 
-from .general import SiteObject, Health, OFF, UNKNOWN, GOOD, FAULT, DEGD, FAIL
+from .general import SiteObject, Health, CheckOutcome, OFF, UNKNOWN, GOOD, FAULT, DEGD, FAIL
 from .paths import CHECKS_DIR
 
 from datetime import datetime, timedelta
 import os
 
 #Library functions
-def __readLastLineFromFile(filename):
+def _readLastLineFromFile(filename):
     with open(filename, 'r') as fh:
         for line in fh: pass
         return line
@@ -159,6 +159,8 @@ class AutomaticCheck(SiteObject):
         SiteObject.__init__(self,x_element,'automaticcheck')
         self.name = self.logfile
         self.system_requirement = system_requirement
+        if not hasattr(self,"maxStalenessDays"):
+            self.maxStalenessDays = 2
         self.recheckResult()
 
     def _qualifiedFileName(self):
@@ -166,45 +168,33 @@ class AutomaticCheck(SiteObject):
         return os.path.join(CHECKS_DIR, self.logfile)
 
     def recheckResult(self):
-        """Sets the last_result field based on the current check file.
-        We expect each line of the output file to be in the form:
-           datetime, outcome, [value], [threshold], description
-        where datetime is local time and standard format, outcome is 'pass' or 'fail',
-        and (if present value and threshold) are numbers. For laziness of CSV parsing,
-        the description string should not contain any commas"""
+        """Sets the last_result field based on the current check file."""
+        # Clear previous outcome, assume failure until success is acheived
+        self.last_result = None
+        self.stale = True
         if not os.path.exists(self._qualifiedFileName()):
-            self.last_result = {'stale': True, 'time': None, 'outcome': None, 
-                                'description': 'File not found'}
+            self.result_error = "File not found"
         else:
-            components = __readLastLineFromFile(self._qualifiedFileName()).split(",")
-            if len(components != 5):
-                self.last_result = {'stale': True, 'date': None, 'outcome': None, 
-                                    'description': 'Invalid file format'}
-            elif (components[1].trim() != "pass" and components[1].trim() != "fail"):
-                self.last_result = {'stale': True, 'date': None, 'outcome': None, 
-                                    'description': 'Invalid outcome format ({})'.format(components[1])}
-            else:
-                try:
-                    date = datetime.strptime(components[0].trim(), "%Y-%m-%d %H:%M:%S.%f")
-                    limit_date = datetime.now() - timedelta(days=self.maxStalenessDays)
-                    self.last_result = {'stale': (date < limit_date), 'date': date, 'outcome': components[1].trim(), 
-                                        'description': components[4].trim()}
-                except ValueError:
-                    self.last_result = {'stale': True, 'date': None, 'outcome': None, 
-                                        'description': 'Invalid date format ({})'.format(components[0])}
+            result_line = _readLastLineFromFile(self._qualifiedFileName())
+            try:
+                self.last_result = CheckOutcome.createFromFileString(result_line)
+                self.stale = self.last_result.isStale(self.maxStalenessDays)
+            except ValueError as ex:
+                self.result_error = str(ex)
 
     def _setHealthAndStatus(self):
         """Determines health of the check based on the staleness and pass/fail.
         Assume the results have already been checked and do not recheck"""
-        if self.last_result['stale']:
+        if self.stale:
             self._health = DEGD
             self._status = "Stale"
-        elif self.last_result['outcome'] == 'pass':
+        elif self.last_result.success:
             self._health = GOOD
             self._status = "Passed"
         else:
             self._health = FAIL
             self._status = "Failed"
+
 
 
 class ManualCheck(SiteObject):

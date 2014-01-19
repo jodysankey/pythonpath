@@ -12,6 +12,8 @@
 # initialized from XML elements
 #========================================================
 
+from datetime import datetime, timedelta
+
 class Health(object):
     """A simple class to represent and compare high level health states"""
     def __init__(self,value,name):
@@ -51,6 +53,74 @@ GOOD = Health(0,"good")
 FAULT = Health(1,"fault")
 DEGD = Health(2,"degrade")
 FAIL = Health(3,"fail")
+
+
+class CheckOutcome(object):
+    """A single outcome of an automatic check, capable of writing and reading from a results file.
+       Each line of the results file is in the form: 
+            datetime, outcome, [value], [threshold], description
+       where datetime is local time and standard format, outcome is 'pass' or 'fail', and (if present 
+       value and threshold) are numbers. For laziness of CSV parsing, the description string does not 
+       contain any commas"""
+    def __init__(self, success, description, value=None, threshold=None, timestamp=None):
+        self.timestamp = datetime.now() if timestamp is None else timestamp
+        self.success = (success is True)
+        self.value = value
+        self.threshold = threshold
+        self.description = description.replace(',','-') #Note we avoid commas for simpler parsing
+    
+    def valueOrString(self, s):
+        return s if self.value is None else self.value
+    def thresholdOrString(self, s):
+        return s if self.threshold is None else self.threshold
+    def outcome(self):
+        return 'PASS' if self.success else 'FAIL'
+
+    def isStale(self, maxAgeDays):
+        """Return true if the timestamp is older than current time by at least the specified number of days"""
+        limit_timestamp = datetime.now() - timedelta(days=maxAgeDays)
+        return (self.timestamp < limit_timestamp)
+
+    def fileString(self):
+        """Returns the standard string encoding of this result"""
+        return ", ".join(
+            self.timestamp, 
+            self.outcome(),
+            self.valueOrString(''),
+            self.thresholdOrString(''),
+            self.description)
+    @staticmethod
+    def headerString():
+        """Returns a commented header line for the results file"""
+        return "# Timestamp              Outcome Value Threshold ResultDescription"
+
+    #Factory methods for simple creation of each outcome, and from file
+    @staticmethod
+    def createSuccess(description, value=None, threshold=None):
+        return CheckOutcome(True, value, threshold)
+    @staticmethod
+    def createFailure(description, value=None, threshold=None):
+        return CheckOutcome(False, value, threshold)
+
+    @staticmethod
+    def createFromFileString(fileString):
+        """Create a new object from the output of fileString"""
+        components = [x.strip() for x in fileString.split(',')]
+        if len(components) != 5:
+            raise Exception('Invalid number of CSV elements ({})'.format(fileString))
+        elif (components[1].upper() != "PASS" and components[1].upper() != "FAIL"):
+            raise Exception('Invalid outcome format ({})'.format(components[1]))
+        else:
+            try:
+                timestamp = datetime.strptime(components[0], "%Y-%m-%d %H:%M:%S.%f")
+                return CheckOutcome(
+                    components[1].upper() == 'PASS', 
+                    components[4],
+                    None if components[2] == '' else float(components[2]),
+                    None if components[3] == '' else float(components[3]),
+                    timestamp)
+            except ValueError:
+                raise ValueError('Invalid number or date format ({})'.format(fileString))
 
 
 class SiteObject(object):
