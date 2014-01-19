@@ -13,9 +13,9 @@ test_log = test_path + "/test.log"
 
 def testFunction(dir):
     """Function suitable for datebatch use. Adds a date line to test_file"""
-    file = open(dir + "/" + test_file,"a+")
-    file.write("Ran test function " + datetime.now().isoformat() + "\n")
-    file.close()
+    exclusion_file = open(dir + "/" + test_file,"a+")
+    exclusion_file.write("Ran test function " + datetime.now().isoformat() + "\n")
+    exclusion_file.close()
 
 def exceptionFunction(dir):
     """Function suitable for datebatch use. Throws an exception"""

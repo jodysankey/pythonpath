@@ -13,27 +13,27 @@ else:
     
 
 def createClassify(subpath,volume,protection,recurse,compress,name=''):
-    """Create a standard .classify file at given location"""
+    """Create a standard .classify exclusion_file at given location"""
 
     path = test_path
     for subdir in subpath:
         path = os.path.join(path,subdir)
-    file = open(os.path.join(path,classifydir.MAGIC_FILE),"a+")
+    exclusion_file = open(os.path.join(path,classifydir.MAGIC_FILE),"a+")
     for setting in zip(('volume','protection','recurse','compress'),(volume,protection,recurse,compress)):
-        file.write("{}={}\n".format(*setting))
+        exclusion_file.write("{}={}\n".format(*setting))
     if len(name)>0:
-        file.write("name={}\n".format(name))
-    file.close()
+        exclusion_file.write("name={}\n".format(name))
+    exclusion_file.close()
 
 def createFile(subpath,name,size):
-    """Create a standard text file of given size at given location"""
+    """Create a standard text exclusion_file of given size at given location"""
 
     path = test_path
     for subdir in subpath:
         path = os.path.join(path,subdir)
-    file = open(os.path.join(path,name),"a+")
-    file.write("x"*size)
-    file.close()
+    exclusion_file = open(os.path.join(path,name),"a+")
+    exclusion_file.write("x"*size)
+    exclusion_file.close()
 
 
 
@@ -102,15 +102,15 @@ class DateBatchTestCase(unittest.TestCase):
         self.failUnless(cd.dirCount('small',None)==1,
                         "Structure 1 - Returned wrong small directory count")
         self.failUnless(cd.fileCount()==10,
-                        "Structure 1 - Returned wrong total file count")
+                        "Structure 1 - Returned wrong total exclusion_file count")
         self.failUnless(cd.fileCount('medium',None)==2,
-                        "Structure 1 - Returned wrong medium file count")
+                        "Structure 1 - Returned wrong medium exclusion_file count")
         
         # Need two different size for windows/unix classify line endings
         self.failUnless(cd.totalSize()==2805 or cd.totalSize()==2785,
                         "Structure 1 - Returned wrong total files size")
         self.failUnless(cd.totalSize('large','secret')==0,
-                        "Structure 1 - Returned wrong large secret file size")
+                        "Structure 1 - Returned wrong large secret exclusion_file size")
 
 
         #Also just run the functions to verify no exceptions
@@ -183,20 +183,20 @@ class DateBatchTestCase(unittest.TestCase):
 
     def testClassifyComment (self):
         """Test comments work in .classify"""        
-        file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
-        file.write("# Single line comment\n")
-        file.write("   # Single line comment not at start\n")
-        file.write("volume=small #Line comment\nprotection=none\nrecurse=true\ncompress=true\n")
-        file.close()
+        exclusion_file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
+        exclusion_file.write("# Single line comment\n")
+        exclusion_file.write("   # Single line comment not at start\n")
+        exclusion_file.write("volume=small #Line comment\nprotection=none\nrecurse=true\ncompress=true\n")
+        exclusion_file.close()
 
         classifydir.ClassifiedDir(test_path,True)
 
 
     def testBadClassifyOne (self):
         """Test missing parameter in .classify"""        
-        file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
-        file.write("protection=none\nrecurse=true\ncompress=false\n")
-        file.close()
+        exclusion_file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
+        exclusion_file.write("protection=none\nrecurse=true\ncompress=false\n")
+        exclusion_file.close()
 
         with self.assertRaises(Exception):
             classifydir.ClassifiedDir(test_path)
@@ -204,9 +204,9 @@ class DateBatchTestCase(unittest.TestCase):
 
     def testBadClassifyTwo (self):
         """Test duplicate parameter in .classify"""        
-        file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
-        file.write("volume=none\nprotection=none\nvolume=small\nrecurse=true\ncompress=true\n")
-        file.close()
+        exclusion_file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
+        exclusion_file.write("volume=none\nprotection=none\nvolume=small\nrecurse=true\ncompress=true\n")
+        exclusion_file.close()
 
         with self.assertRaises(Exception):
             classifydir.ClassifiedDir(test_path)
@@ -214,9 +214,9 @@ class DateBatchTestCase(unittest.TestCase):
 
     def testBadClassifyThree (self):
         """Test bad setting in .classify"""        
-        file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
-        file.write("vollume=none\nprotection=none\nrecurse=true\ncompress=false\n")
-        file.close()
+        exclusion_file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
+        exclusion_file.write("vollume=none\nprotection=none\nrecurse=true\ncompress=false\n")
+        exclusion_file.close()
 
         with self.assertRaises(Exception):
             classifydir.ClassifiedDir(test_path)
@@ -224,9 +224,9 @@ class DateBatchTestCase(unittest.TestCase):
 
     def testBadClassifyFour (self):
         """Test bad value in .classify"""        
-        file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
-        file.write("volume=moderate\nprotection=none\nrecurse=true\ncompress=false\n")
-        file.close()
+        exclusion_file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
+        exclusion_file.write("volume=moderate\nprotection=none\nrecurse=true\ncompress=false\n")
+        exclusion_file.close()
 
         with self.assertRaises(Exception):
             classifydir.ClassifiedDir(test_path)
@@ -234,9 +234,9 @@ class DateBatchTestCase(unittest.TestCase):
 
     def testBadClassifyFive (self):
         """Test malformed line in .classify"""        
-        file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
-        file.write("volume=\nprotection=none\nrecurse=true\ncompress=true\n")
-        file.close()
+        exclusion_file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
+        exclusion_file.write("volume=\nprotection=none\nrecurse=true\ncompress=true\n")
+        exclusion_file.close()
 
         with self.assertRaises(Exception):
             classifydir.ClassifiedDir(test_path)
