@@ -24,10 +24,13 @@ class TagWriter(object):
         self.__f.close()
         
     def write(self,tag,attributes='',text=''): 
-        if attributes=='':
-            self.__f.write("<{}>{}</{}>\n".format(tag,text,tag))
-        else:
-            self.__f.write("<{} {}>{}</{}>\n".format(tag,attributes,text,tag))
+        self.__f.write("<{}".format(tag))
+        if attributes != '':
+            self.__f.write(" {}".format(attributes))
+        self.__f.write(">{}</{}>\n".format(text,tag))
+         
+    def writeOrphan(self,tag,attributes): 
+        self.__f.write("<{} {}>\n".format(tag, attributes))
     
     def writeText(self,text): 
         self.__f.write(text)
