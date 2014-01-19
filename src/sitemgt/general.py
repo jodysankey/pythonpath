@@ -84,7 +84,7 @@ class CheckOutcome(object):
     def fileString(self):
         """Returns the standard string encoding of this result"""
         return ", ".join([
-            self.timestamp, 
+            self.timestamp.strftime("%Y-%m-%d %H:%M:%S"), 
             self.outcome(),
             self.valueOrString(''),
             self.thresholdOrString(''),
@@ -112,7 +112,7 @@ class CheckOutcome(object):
             raise Exception('Invalid outcome format ({})'.format(components[1]))
         else:
             try:
-                timestamp = datetime.strptime(components[0], "%Y-%m-%d %H:%M:%S.%f")
+                timestamp = datetime.strptime(components[0], "%Y-%m-%d %H:%M:%S")
                 return CheckOutcome(
                     components[1].upper() == 'PASS', 
                     components[4],
