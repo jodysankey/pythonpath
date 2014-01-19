@@ -1,24 +1,17 @@
 #========================================================
 # software.py
 #========================================================
-# $HeadURL:                                             $
-# Last $Author: jody $
-# $Revision: 742 $
-# $Date: 2009-12-28 02:23:37 -0600 (Mon, 28 Dec 2009) $
-#========================================================
 # PublicPermissions: True
 #========================================================
 # Classes to represent the software components within a
 # site and their deployment onto hardware hosts
 #========================================================
 
-
+__author__="Jody"
+__date__ ="$Date:$"
 
 from .general import SiteObject, GOOD, DEGD, FAIL, FAULT, OFF
-
 import os
-
-
 
 class Language(SiteObject):
     """An interpreted language for scripting""" 
@@ -79,11 +72,9 @@ class Component(SiteObject):
         self.dependencies[depended_component.name] = depended_component
         depended_component.dependers[self.name] = self
 
-    def health(self):
+    def _setHealthAndStatus(self):
         """Unless overridden the component health is unmonitored"""
-        if self._health is None: self._health = OFF
-        return self._health
-
+        self._health = OFF
 
 
 class RepoApplication(Component):
@@ -101,7 +92,6 @@ class RepoApplication(Component):
             self.package = [self.name]
 
 
-
 class NonRepoApplication(Component):
     """A software application not installed through an online repository system"""
     def __init__(self, x_element):
@@ -109,22 +99,18 @@ class NonRepoApplication(Component):
         Component.__init__(self, x_element, 'nonrepoapplication')
 
 
-
-
 class OtherFile(Component):
     """A miscellaneous file not managed through site CM"""
+    _possibleStates = {'Working':GOOD, 'Suspect':FAULT, 'Defective':DEGD}
     def __init__(self, x_element):
         """Initialize the object"""      
         Component.__init__(self,x_element,'otherfile')
-        if x_element.get('status') is None:     self.status = 'Working'
-        if x_element.get('filename') is None:   self.filename = x_element.get('name')
-
-    _possibleStates = {'Working':GOOD, 'Suspect':FAULT, 'Defective':DEGD}
-
-    def health(self):
-        if self._health is None: self._health = self._possibleStates[self.status]
-        return self._health
-
+        if self._status is None:
+            self._status = 'Working'
+        if not hasattr(self, 'filename'):
+            self.filename = x_element.get('name')
+    def _setHealthAndStatus(self):
+        self._health = self._possibleStates[self._status]
 
 
 class CmComponent(Component):
@@ -153,7 +139,9 @@ class CmComponent(Component):
 class Script(CmComponent):
     """An interpreted software script controlled through CM"""
     _expand_objects = [['language']]
-    
+    _possibleStates = {'NotStarted':FAIL, 'NotFinished':DEGD, 'Working':GOOD,
+                       'Suspect':FAULT, 'Defective':DEGD, 'Dead': FAIL }
+
     def __init__(self, x_element):
         """Initialize the object"""      
         CmComponent.__init__(self, x_element, 'script')
@@ -168,25 +156,17 @@ class Script(CmComponent):
         for app_name in self.language.application_names:
             self._registerDependency(siteDescription.components[app_name])
 
-    _possibleStates = {'NotStarted':FAIL, 'NotFinished':DEGD, 'Working':GOOD,
-                       'Suspect':FAULT, 'Defective':DEGD, 'Dead': FAIL }
-
-    def health(self):
-        if self._health is None: self._health = self._possibleStates[self.status]
-        return self._health
-
-
+    def _setHealthAndStatus(self):
+        self._health = self._possibleStates[self._status]
 
 
 class ConfigFile(CmComponent):
     """An interpreted software script controlled through CM"""
+    _possibleStates = {'Working':GOOD, 'Suspect':FAULT, 'Defective':DEGD }
+
     def __init__(self, x_element):
         """Initialize the object"""      
         CmComponent.__init__(self, x_element, 'configfile')
-        
-    _possibleStates = {'Working':GOOD, 'Suspect':FAULT, 'Defective':DEGD }
 
-    def health(self):
-        if self._health is None: self._health = self._possibleStates[self.status]
-        return self._health
-
+    def _setHealthAndStatus(self):
+        self._health = self._possibleStates[self._status]

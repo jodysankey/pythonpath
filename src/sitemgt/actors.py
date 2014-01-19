@@ -24,6 +24,12 @@ import datetime
 import tagwriter
 import xml.etree.ElementTree
 
+ 
+def _splitAptitudeLine(line):
+    """Splits an aptitude output line into its package name and package description"""
+    pos = line.find('- ')
+    return [line[4:pos].strip(),line[pos+2:].strip().replace('"','')]
+
 
 class Actor(SiteObject):
     """A high level site capability"""
@@ -53,7 +59,6 @@ class Actor(SiteObject):
 
     def _classLink(self, siteDescription):
         """Initialize references to other actor objects"""
-        
         # Define actor group membership
         if hasattr(self, 'members'):
             for member_name in sorted(self.members.keys()):
@@ -63,7 +68,6 @@ class Actor(SiteObject):
         
     def _crossLink(self, siteDescription):
         """Initialize references to other non-actor objects"""
-        
         # Ask requirements to link their components, and deploy these requirements
         for req in self.requirements.values():
             req._crossLink(siteDescription)
@@ -82,20 +86,13 @@ class Actor(SiteObject):
         # More specific types of actor can override this with their own values
         pass
 
-    def health(self):
+    def _setHealthAndStatus(self):
         """Unless overridden the actor health is unmonitored"""
-        if self._health is None: self._health = OFF
-        return self._health
+        self._health = OFF
 
     
     
-    
-def _splitAptitudeLine(line):
-    """Splits an aptitude output line into its package name and package description"""
-    pos = line.find('- ')
-    return [line[4:pos].strip(),line[pos+2:].strip().replace('"','')]
-
-
+   
 class Host(Actor):
     """A computer within the site"""
 
@@ -187,8 +184,7 @@ class Host(Actor):
     def resetDeploymentStatus(self):      
         """Clears all existing component deployment information"""
         self.resetHealth()
-        if hasattr(self,'status'): 
-            delattr(self,'status')
+        self._status = None
         if hasattr(self,'status_date'): 
             delattr(self,'status_date')
         if hasattr(self,'upgradable_packages'): 
@@ -201,7 +197,6 @@ class Host(Actor):
         
     def loadDeploymentStatus(self, filename):      
         """Load the component deployment status from the named file, using an XML ElementTree"""
-
         self.resetDeploymentStatus()
         
         # Find root element and check it is for the correct host
@@ -218,35 +213,33 @@ class Host(Actor):
             self.unexpected_packages = [(p.get('name'),p.get('description')) for p in x_host.findall('Unexpected')]
  
  
-    def health(self):
+    def _setHealthAndStatus(self):
         """Determines health of the host, based on state of its software deployments.
         Note this function sets status"""
 
-        if self._health is None:
-            # Typically our state is based only on the deployments
-            if len(self.expected_deployments) == 0:
-                self._health = GOOD
-                self.status = "NoDeployments"
+        # Typically our state is based only on the deployments
+        if len(self.expected_deployments) == 0:
+            self._health = GOOD
+            self._status = "No deployments"
+        else:
+            self._health = Health.amortized([d.health for d in self.expected_deployments.values()])
+            if self._health is UNKNOWN:
+                self._status = "Unknown deployment state"
+            elif self._health is OFF: #Dont see how this could happen
+                self._status = "Unmonitored deployments"
+            elif self._health in [FAIL, DEGD, FAULT]:
+                self._status = "Deployment problem"
             else:
-                self._health = Health.amortized([d.health() for d in self.expected_deployments.values()])
-                if self._health is UNKNOWN:
-                    self.status = "UnknownDeploymentState"
-                elif self._health is OFF: #Dont see how this could happen
-                    self.status = "UnmonitoredDeployments"
-                elif self._health in [FAIL, DEGD, FAULT]:
-                    self.status = "DeploymentProblem"
-                else:
-                    self.status = "Good"
+                self._status = "Good"
+        # But if they look ok, check our off nominal packages
+        if self._health is GOOD:
+            if hasattr(self,'upgradable_packages') and len(self.upgradable_packages)>0:
+                self._health = FAULT
+                self._status = "PackagesNeedUpgrade"
+            elif hasattr(self,'unexpected_packages') and len(self.unexpected_packages)>0:
+                self._health = GOOD
+                self._status = "UnexpectedPackages"
 
-            # But if they look ok, check our off nominal packages
-            if self._health is GOOD:
-                if hasattr(self,'upgradable_packages') and len(self.upgradable_packages)>0:
-                    self.status = "PackagesNeedUpgrade"
-                    self._health = FAULT
-                elif hasattr(self,'unexpected_packages') and len(self.unexpected_packages)>0:
-                    self.status = "UnexpectedPackages"
-                    self._health = GOOD
-        return self._health
 
 class HostGroup(Actor):
     """A collections of computers within the site"""
@@ -275,4 +268,3 @@ class UserGroup(Actor):
     def __init__(self, x_definition, x_functionality):
         """Initialize the object"""        
         Actor.__init__(self, x_definition, x_functionality, True, 'usergroup')
-

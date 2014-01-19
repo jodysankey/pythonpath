@@ -13,11 +13,9 @@
 # mainly on classes derived from SiteObject 
 #========================================================
 
-#Imports
 import xml.etree.ElementTree
 import os
 
-#from .siteobject import SiteObject
 from .functionality import Capability
 from .actors import User, Host, UserGroup, HostGroup
 from .software import Script, RepoApplication, NonRepoApplication, ConfigFile, OtherFile, Language
@@ -140,12 +138,3 @@ class SiteDescription(object):
         for cpt_name in sorted(self.components.keys()):
             output += str(self.components[cpt_name]) + '\n'
         return output
-
-
-
-if __name__ == '__main__':
-    # Test Script
-    sd = SiteDescription("/home/jody/files/computing/requirement_dict/SiteDescription.xml")
-
-    
-    

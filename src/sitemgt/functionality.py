@@ -15,10 +15,16 @@
 
 
 from .general import SiteObject, Health, OFF, UNKNOWN, GOOD, FAULT, DEGD, FAIL
-#import xml.etree.ElementTree
+from .paths import CHECKS_DIR
 
-import sitemgt
+from datetime import datetime, timedelta
+import os
 
+#Library functions
+def __readLastLineFromFile(filename):
+    with open(filename, 'r') as fh:
+        for line in fh: pass
+        return line
 
 
 class SystemRequirement(SiteObject):
@@ -30,13 +36,33 @@ class SystemRequirement(SiteObject):
 
     def __init__(self, x_element, capability):
         """Initialize the object"""
+        
+        # Set basic properties
         SiteObject.__init__(self,x_element,'systemrequirement')
         self.text = self.text.replace("%","The System")
         self.capability = capability
         self.name = self.uid
         self.importance_text = self._importance_dict[self.importance]
 
-        # Mark dictionary with blanks until link attaches them
+        # Build lists of all manual and automatic checks and determine the verification type
+        self.automatic_checks = []
+        self.manual_checks = []
+        for x_ck in x_element.findall('AutomaticCheck'):
+            self.automatic_checks.append(AutomaticCheck(x_ck, self))
+        for x_ck in x_element.findall('ManualCheck'):
+            self.automatic_checks.append(ManualCheck(x_ck, self))
+        if len(self.automatic_checks) > 0:
+            self.verification = "ByAutomaticTest"
+        elif len(self.manual_checks) > 0:
+            self.verification = "ByManualTest"
+        elif x_element.find("VerificationByDesign") is not None:
+            self.verification = "ByDesign"
+        elif x_element.find("VerificationByInstallation") is not None:
+            self.verification = "ByInstallation"
+        else:
+            self.verification = "ToBeDefined"
+
+        # Create dictionary and list of requirement UIDs, to be replaced with the requirements at link time
         self.actor_requirement_dict = {}
         self.actor_requirement_list = []
         for x_ar in x_element.findall('Requirement'):
@@ -86,25 +112,112 @@ class SystemRequirement(SiteObject):
         """Overridden to include a target within the capability page"""
         return self.capability.htmlName() + "#" + self.uid
 
-    def health(self):
-        """Determines health of the system requirement, based on health of its actor requirement_dict"""
-        if self._health is None:
-            # Failure to fully decompose to a lower level means we are not healthy
-            if self.decomposition == 'None':
+    def _setHealthAndStatus(self):
+        """Determines health of the system requirement, based on health of its verification strategy, 
+        check results, and the decomposition"""
+        # Failure to fully decompose to a lower level means we are not healthy
+        if self.decomposition == 'None':
+            self._health = FAIL
+            self._status = "No decomposition"
+        elif self.verification == "ByDesign":
+            self._health = GOOD
+            self._status = "Functional"
+        elif self.verification == "ByManualTest":
+            self._health = OFF
+            self._status = "Tested manually"
+        elif self.verification == "ByManualTest":
+            fail_count = len([x for x in self.automatic_checks if x.health() == FAIL])
+            stale_count = len([x for x in self.automatic_checks if x.health() == DEGD])
+            if fail_count > 0:
                 self._health = FAIL
-                self.status = "NoDecomposition"
-            elif self.decomposition == 'Partial':
+                self._status = "Tests failing"
+            elif stale_count > 0:
                 self._health = DEGD
-                self.status = "PartialDecomposition"
-            elif self.decomposition == 'Blemished':
-                self._health = FAULT
-                self.status = "BlemishedDecomposition"
-            # In general, system requirement health will be based on testing, which is not yet implemented 
+                self._status = "Tests stale"
             else:
-                self._health = OFF
-                self.status = "TestingNotImplemented"
-        return self._health
+                self._health = GOOD
+                self._status = "All tests pass"
+        elif self.verification == "ToBeDefined":
+                self._health = DEGD
+                self._status = "Verification not determined"
+        elif self.decomposition == 'Partial':
+            self._health = DEGD
+            self._status = "Partial requirement decomposition"
+        elif self.decomposition == 'Blemished':
+            self._health = FAULT
+            self._status = "Blemished requirement decomposition"
+        else:
+            #TODO: work out how to set health based on software installation when that matters
+            self._health = OFF
+            self._status = "Reached default case"
 
+
+class AutomaticCheck(SiteObject):
+    """An automatic test to determine whether a system capability is being met"""
+    # No children to expand
+    def __init__(self, x_element, system_requirement):
+        SiteObject.__init__(self,x_element,'automaticcheck')
+        self.name = self.logfile
+        self.system_requirement = system_requirement
+        self.recheckResult()
+
+    def _qualifiedFileName(self):
+        """Gets the log file name"""
+        return os.path.join(CHECKS_DIR, self.logfile)
+
+    def recheckResult(self):
+        """Sets the last_result field based on the current check file.
+        We expect each line of the output file to be in the form:
+           datetime, outcome, [value], [threshold], description
+        where datetime is local time and standard format, outcome is 'pass' or 'fail',
+        and (if present value and threshold) are numbers. For laziness of CSV parsing,
+        the description string should not contain any commas"""
+        if not os.path.exists(self._qualifiedFileName()):
+            self.last_result = {'stale': True, 'time': None, 'outcome': None, 
+                                'description': 'File not found'}
+        else:
+            components = __readLastLineFromFile(self._qualifiedFileName()).split(",")
+            if len(components != 5):
+                self.last_result = {'stale': True, 'date': None, 'outcome': None, 
+                                    'description': 'Invalid file format'}
+            elif (components[1].trim() != "pass" and components[1].trim() != "fail"):
+                self.last_result = {'stale': True, 'date': None, 'outcome': None, 
+                                    'description': 'Invalid outcome format ({})'.format(components[1])}
+            else:
+                try:
+                    date = datetime.strptime(components[0].trim(), "%Y-%m-%d %H:%M:%S.%f")
+                    limit_date = datetime.now() - timedelta(days=self.maxStalenessDays)
+                    self.last_result = {'stale': (date < limit_date), 'date': date, 'outcome': components[1].trim(), 
+                                        'description': components[4].trim()}
+                except ValueError:
+                    self.last_result = {'stale': True, 'date': None, 'outcome': None, 
+                                        'description': 'Invalid date format ({})'.format(components[0])}
+
+    def _setHealthAndStatus(self):
+        """Determines health of the check based on the staleness and pass/fail.
+        Assume the results have already been checked and do not recheck"""
+        if self.last_result['stale']:
+            self._health = DEGD
+            self._status = "Stale"
+        elif self.last_result['outcome'] == 'pass':
+            self._health = GOOD
+            self._status = "Passed"
+        else:
+            self._health = FAIL
+            self._status = "Failed"
+
+
+class ManualCheck(SiteObject):
+    """An manual test to determine whether a system capability is being met"""
+    # No children to expand
+    def __init__(self, x_element, system_requirement):
+        SiteObject.__init__(self,x_element,'manualcheck')
+        self.system_requirement = system_requirement
+
+    def _setHealthAndStatus(self):
+        """Determines the [fixed] health of the check.""" 
+        self._health = OFF
+        self._status = "ManuallyAssured"
 
 
 class ActorRequirement(SiteObject):
@@ -112,7 +225,6 @@ class ActorRequirement(SiteObject):
 
     _expand_dicts = [['system_requirements','components'],['system_requirements','components']]
     _expand_objects = [['actor']]
-
     
     def __init__(self, x_element, actor):
         """Initialize the object"""
@@ -120,7 +232,6 @@ class ActorRequirement(SiteObject):
         self.text = self.text.replace("%",actor.name)
         self.actor = actor
         self.name = self.uid
-
         # Mark dictionary with blanks until link attaches them
         self.system_requirements = {}
         self.primary_components = {}
@@ -139,23 +250,21 @@ class ActorRequirement(SiteObject):
         """Overridden to include a target within the actor page"""
         return self.actor.htmlName() + "#" + self.uid
 
-    def health(self):
+    def _setHealthAndStatus(self):
         """Determines health of the actor requirement, based on health of its associated deployments"""
         if self._health is None:
             if not self.actor.isHostSet():
                 # User based requirement_dict cannot be monitored
                 self._health = OFF
-                self.status = "UserBased"
+                self._status = "UserBased"
             elif len(self.deployments)==0:
                 # Requirements with no software cannot be monitored
                 self._health = OFF
-                self.status = "NoDeployments"
+                self._status = "NoDeployments"
             else:
                 self._health = Health.amortized([d.functionalHealth() for d in self.deployments.values()])
-                self.status = "Deployments {}".format(self._health)
-        return self._health
+                self._status = "Deployments {}".format(self._health)
 
-    
 
 class ActorResponsibility(SiteObject):
     """A partitioning of functionality to an actor set in support of a site capability"""
@@ -178,11 +287,11 @@ class ActorResponsibility(SiteObject):
         self.actor.responsibilities[self.capability.name] = self
         
 
-
 class Capability(SiteObject):
     """A high level site capability"""
     
     _expand_dicts = [['responsibility_dict','requirement_dict']]
+    #Translation table from system requirement importance and health to own health
     _translation = {
             '5':{UNKNOWN:UNKNOWN, OFF:OFF, GOOD:GOOD, FAULT:DEGD, DEGD:FAIL, FAIL:FAIL},
             '4':{UNKNOWN:UNKNOWN, OFF:OFF, GOOD:GOOD, FAULT:FAULT, DEGD:DEGD, FAIL:FAIL},
@@ -195,7 +304,7 @@ class Capability(SiteObject):
         """Initialize the object"""        
         # Set basic attributes
         SiteObject.__init__(self,x_element,'capability')
-        # Populate a list (for order) and dict(for lookup) of all child requirements    
+        # Populate a list (for order) and dict (for lookup) of all child requirements    
         self.requirement_dict = {}
         self.requirement_list = []
         for x_sr in x_element.findall('SystemRequirement'):
@@ -205,7 +314,6 @@ class Capability(SiteObject):
         # Populate a list and dict of all child responsibilities        
         self.responsibility_dict = {}
         self.responsibility_list = []
-        #for x_rsp in x_element.findall('UserResponsibility|HostResponsibility'):
         for x_rsp in x_element.findall('UserResponsibility'):
             rsp = ActorResponsibility(x_rsp, self)
             self.responsibility_dict[rsp.user_set] = rsp
@@ -222,11 +330,7 @@ class Capability(SiteObject):
         for resp in self.responsibility_dict.values():
             resp._crossLink(siteDescription)
             
-    def health(self):
+    def _setHealthAndStatus(self):
         """Determines health of the system requirement, based on health of its actor requirement_dict"""
-        if self._health is None:
-            self._health = Health.worst([self._translation[sr.importance][sr.health()] for sr in self.requirement_list])
-            self.status = self._health.name
-        return self._health
-
-
+        self._health = Health.worst([self._translation[sr.importance][sr.health] for sr in self.requirement_list])
+        self._status = self._health.name
