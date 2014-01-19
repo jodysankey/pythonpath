@@ -83,12 +83,12 @@ class CheckOutcome(object):
 
     def fileString(self):
         """Returns the standard string encoding of this result"""
-        return ", ".join(
+        return ", ".join([
             self.timestamp, 
             self.outcome(),
             self.valueOrString(''),
             self.thresholdOrString(''),
-            self.description)
+            self.description])
     @staticmethod
     def headerString():
         """Returns a commented header line for the results file"""
