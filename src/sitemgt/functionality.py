@@ -34,6 +34,16 @@ class SystemRequirement(SiteObject):
     _expand_objects = [['capability']]
     _importance_dict = {'5':'Critical', '4':'High', '3':'Medium', '2':'Low', '1':'Minimal'}
 
+    class Verification(object):
+        def __init__(self, description, test_based):
+            self.description = description
+            self.test_based = test_based
+    AUTOMATIC_TEST = Verification("Automatic testing", True)
+    MANUAL_TEST = Verification("Manual testing", True)
+    VERIF_BY_DESIGN = Verification("By design", False)
+    VERIF_BY_INSTALLATION = Verification("By software installation", False)
+    VERIF_TBD = Verification("To be defined", False)
+
     def __init__(self, x_element, capability):
         """Initialize the object"""
         
@@ -52,15 +62,15 @@ class SystemRequirement(SiteObject):
         for x_ck in x_element.findall('ManualCheck'):
             self.automatic_checks.append(ManualCheck(x_ck, self))
         if len(self.automatic_checks) > 0:
-            self.verification = "ByAutomaticTest"
+            self.verification = SystemRequirement.AUTOMATIC_TEST
         elif len(self.manual_checks) > 0:
-            self.verification = "ByManualTest"
+            self.verification = SystemRequirement.MANUAL_TEST
         elif x_element.find("VerificationByDesign") is not None:
-            self.verification = "ByDesign"
+            self.verification = SystemRequirement.VERIF_BY_DESIGN
         elif x_element.find("VerificationByInstallation") is not None:
-            self.verification = "ByInstallation"
+            self.verification = SystemRequirement.VERIF_BY_INSTALLATION
         else:
-            self.verification = "ToBeDefined"
+            self.verification = SystemRequirement.VERIF_TBD
 
         # Create dictionary and list of requirement UIDs, to be replaced with the requirements at link time
         self.actor_requirement_dict = {}
@@ -108,6 +118,9 @@ class SystemRequirement(SiteObject):
             else:               users.add(act)
         return users
 
+    def uidNumber(self):
+        return int(self.uid[1:])
+
     def htmlName(self):
         """Overridden to include a target within the capability page"""
         return self.capability.htmlName() + "#" + self.uid
@@ -119,15 +132,18 @@ class SystemRequirement(SiteObject):
         if self.decomposition == 'None':
             self._health = FAIL
             self._status = "No decomposition"
-        elif self.verification == "ByDesign":
+        elif self.decomposition == 'Partial':
+            self._health = DEGD
+            self._status = "Partial requirement decomposition"
+        elif self.verification == SystemRequirement.VERIF_BY_DESIGN:
             self._health = GOOD
             self._status = "Functional"
-        elif self.verification == "ByManualTest":
+        elif self.verification == SystemRequirement.MANUAL_TEST:
             self._health = OFF
             self._status = "Tested manually"
-        elif self.verification == "ByManualTest":
-            fail_count = len([x for x in self.automatic_checks if x.health() == FAIL])
-            stale_count = len([x for x in self.automatic_checks if x.health() == DEGD])
+        elif self.verification == SystemRequirement.AUTOMATIC_TEST:
+            fail_count = len([x for x in self.automatic_checks if x.health == FAIL])
+            stale_count = len([x for x in self.automatic_checks if x.health == DEGD])
             if fail_count > 0:
                 self._health = FAIL
                 self._status = "Tests failing"
@@ -137,12 +153,9 @@ class SystemRequirement(SiteObject):
             else:
                 self._health = GOOD
                 self._status = "All tests pass"
-        elif self.verification == "ToBeDefined":
+        elif self.verification == SystemRequirement.VERIF_TBD:
                 self._health = DEGD
                 self._status = "Verification not determined"
-        elif self.decomposition == 'Partial':
-            self._health = DEGD
-            self._status = "Partial requirement decomposition"
         elif self.decomposition == 'Blemished':
             self._health = FAULT
             self._status = "Blemished requirement decomposition"
@@ -236,6 +249,9 @@ class ActorRequirement(SiteObject):
             cmp = siteDescription.components[cmp_name]
             self.primary_components[cmp_name] = cmp
     
+    def uidNumber(self):
+        return int(self.uid[1:])
+
     def htmlName(self):
         """Overridden to include a target within the actor page"""
         return self.actor.htmlName() + "#" + self.uid
