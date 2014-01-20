@@ -97,10 +97,10 @@ class CheckOutcome(object):
     #Factory methods for simple creation of each outcome, and from file
     @staticmethod
     def createSuccess(description, value=None, threshold=None):
-        return CheckOutcome(True, value, threshold)
+        return CheckOutcome(True, description, value, threshold)
     @staticmethod
     def createFailure(description, value=None, threshold=None):
-        return CheckOutcome(False, value, threshold)
+        return CheckOutcome(False, description, value, threshold)
 
     @staticmethod
     def createFromFileString(fileString):
