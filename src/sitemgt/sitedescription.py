@@ -19,6 +19,7 @@ import os
 from .functionality import Capability
 from .actors import User, Host, UserGroup, HostGroup
 from .software import Script, RepoApplication, NonRepoApplication, ConfigFile, OtherFile, Language
+from .paths import getDeploymentFile
 
 __author__="Jody"
 __date__ ="$Date:$"
@@ -26,8 +27,8 @@ __date__ ="$Date:$"
 
 def mergeDictionaries(dicts):
     out = {}
-    for dict in dicts:
-        out.update(dict)
+    for dic in dicts:
+        out.update(dic)
     return out
 
 def makeObjectDictionary(class_type, x_elements):
@@ -116,12 +117,13 @@ class SiteDescription(object):
         for actor in self.actors.values():
             actor._crossLink(self)
         
-    def loadDeploymentStatus(self, filename_format):
+    def loadDeploymentStatus(self):
         """Loads deployment files for every host with a file matching filename_format"""
         for host in self.hosts.values():
+            host_deployment_file = getDeploymentFile(host.name)
             host.resetDeploymentStatus()
-            if os.path.exists(filename_format.format(host.name)):
-                host.loadDeploymentStatus(filename_format.format(host.name))
+            if os.path.exists(host_deployment_file):
+                host.loadDeploymentStatus(host_deployment_file)
 
     def __str__(self):
         """Return a string representation"""
