@@ -92,7 +92,7 @@ class CheckOutcome(object):
     @staticmethod
     def headerString():
         """Returns a commented header line for the results file"""
-        return "# Timestamp              Outcome Value Threshold ResultDescription"
+        return "# Timestamp       Outcome Value Threshold ResultDescription"
 
     #Factory methods for simple creation of each outcome, and from file
     @staticmethod

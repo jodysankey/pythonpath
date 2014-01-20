@@ -15,7 +15,7 @@
 
 
 from .general import SiteObject, Health, CheckOutcome, OFF, UNKNOWN, GOOD, FAULT, DEGD, FAIL
-from .paths import CHECKS_DIR
+from .paths import CHECK_RESULTS_DIR
 
 from datetime import datetime, timedelta
 import os
@@ -165,7 +165,7 @@ class AutomaticCheck(SiteObject):
 
     def _qualifiedFileName(self):
         """Gets the log file name"""
-        return os.path.join(CHECKS_DIR, self.logfile)
+        return os.path.join(CHECK_RESULTS_DIR, self.logfile)
 
     def recheckResult(self):
         """Sets the last_result field based on the current check file."""

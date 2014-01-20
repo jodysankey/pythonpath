@@ -12,9 +12,10 @@ __date__ ="$Date:$"
 
 import os
 
-BASE_DIR = os.environ["SITEPATH"]
-DESC_FILE =  os.path.join(BASE_DIR, "svn/site/xml/SiteDescription.xml")
-OUTPUT_DIR = os.path.join(BASE_DIR, "website/variable")
-CHECKS_DIR = os.path.join(BASE_DIR, "checks")
-DEPLOYMENT_FMT = os.path.join(BASE_DIR, "status/{}_deployment.xml")
+SITE_BASE_DIR = os.environ["SITEPATH"]
+SITE_XML_FILE =  os.path.join(SITE_BASE_DIR, "svn/site/xml/SiteDescription.xml")
+WEB_OUTPUT_DIR = os.path.join(SITE_BASE_DIR, "website/variable")
+CHECK_RESULTS_DIR = os.path.join(SITE_BASE_DIR, "checks")
+CHECK_SRC_DIR = os.path.join(SITE_BASE_DIR, "svn/site/checks")
+DEPLOYMENT_FMT = os.path.join(SITE_BASE_DIR, "status/{}_deployment.xml")
 
