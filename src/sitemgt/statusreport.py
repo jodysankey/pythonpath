@@ -27,6 +27,8 @@ def getCurrentTime():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 def getIpV4Address():
+    # In the normal case we only expect one non-loopback address, but generate a 
+    # semicolon separated list for completeness
     addresses = []
     lines = subprocess.check_output(['ip','-o','-4','addr']).decode("utf-8").split("\n")
     for line in lines:
@@ -40,7 +42,7 @@ def getIpV6AddressCount():
     # Only trying to prove there are no v6 addresses, and I'm not completely sure what
     # one would look like if it existed anyway, so just get a count instead of the addresses
     lines = subprocess.check_output(['ip','-o','-6','addr']).decode("utf-8").split("\n")
-    return lines.count()
+    return len(lines)
 
 
 # Define an ordered list of the fields we will define, including pointers to the
