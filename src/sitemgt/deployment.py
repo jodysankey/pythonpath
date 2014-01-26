@@ -12,14 +12,12 @@
 # software component onto hardware hosts
 #========================================================
 
-
-from .general import SiteObject, Health, GOOD, FAIL, FAULT, DEGD, UNKNOWN
-
-#from .software import RepoApplication, NonRepoApplication
-import sitemgt
-
 import os
 import filecmp
+
+from .general import SiteObject, Health, GOOD, FAIL, FAULT, DEGD, UNKNOWN
+from .software import RepoApplication, NonRepoApplication, OtherFile
+
 
 # TODO: I refactored the health from a function to a property, relying on the
 # getHealthAndStatus function. Quite likely that this won't be working quite
@@ -46,66 +44,6 @@ class _ComparisonState(object):
             local_time = os.path.getmtime(local_path)
             master_time = os.path.getmtime(master_path)
             self.state =  _ComparisonState.LOCAL_FILE_NEWER if local_time > master_time else _ComparisonState.MASTER_FILE_NEWER
-
-
-#class _SvnLocalState(object):
-#    """Determines and stores state of a subversion working file"""
-#    GOOD = 0
-#    ERROR = 1
-#    NO_LOCAL_FILE = 2
-#    ABNORMAL = 3
-#    MODIFIED = 4
-#    OUT_OF_DATE = 5
-#    
-#    def __init__(self,path):
-#        """Determine state of supplied path"""
-#        self.path = path
-#        if not os.path.exists(self.path):
-#            self.state = _SvnLocalState.NO_LOCAL_FILE
-#        else:
-#            (self.return_code,output) = subprocess.getstatusoutput('svn -vu --non-interactive "{}"'.format(path))
-#            self.state_string = output[:9]
-#            if self.return_code != 0 :
-#                self.state = _SvnLocalState.ERROR
-#            else:
-#                if self.state_string[1:7] != '      ':  self.state = _SvnLocalState.ABNORMAL
-#                elif self.state_string[8] == '*':       self.state = _SvnLocalState.OUT_OF_DATE
-#                elif self.state_string[0] == ' ':       self.state = _SvnLocalState.GOOD
-#                elif self.state_string[0] == 'M':       self.state = _SvnLocalState.MODIFIED
-#                elif self.state_string[0] == 'A':       self.state = _SvnLocalState.MODIFIED
-#                elif self.state_string[0] == '?':       self.state = _SvnLocalState.ERROR
-#                else:                                   self.state = _SvnLocalState.ABNORMAL
-#
-#class _SvnRemoteState(object):
-#    """Determines and stores state of a subversion repository file"""
-#    EXISTS = 0
-#    DOES_NOT_EXIST = 1
-#    COMM_FAIL = 2
-#    
-#    def __init__(self,repository,location):
-#        """Determine state of supplied location within supplied repository"""
-#        self.url = "svn://" + os.path.join(repository,location)
-#        retcode = subprocess.getstatusoutput('svn --non-interactive list "{}"'.format(self.url))[0]
-#        if retcode == 0:
-#            self.state = _SvnRemoteState.EXISTS
-#        else:
-#            # Could not find that file, but does the mean the file is bad or the whole repository is down?
-#            retcode = subprocess.getstatusoutput('svn --non-interactive list "svn://{}"'.format(repository))[0]
-#            if retcode == 0:
-#                self.state = _SvnRemoteState.DOES_NOT_EXIST
-#            else:
-#                self.state = _SvnRemoteState.COMM_FAIL
-
-#class _RepoPackageState(object):
-#    """Determines and stores install state of a debian package"""
-#    INSTALLED = 0
-#    NOT_INSTALLED = 1
-#    
-#    def __init__(self,package):
-#        """Determine state of supplied location within supplied repository"""
-#        output = subprocess.check_output("aptitude search '~n^{}$ ~i'".format(package),shell=True)
-#        self.state = _RepoPackageState.INSTALLED if len(output) > 1 else _RepoPackageState.NOT_INSTALLED 
-
 
 
 class Deployment(SiteObject):
@@ -189,7 +127,7 @@ class Deployment(SiteObject):
 
     def gatherStatus(self, installed_package_tuples, cm_working_root):
         """Determines current state of the deployment, assuming we running on the host"""
-        if isinstance(self.component, sitemgt.RepoApplication):
+        if isinstance(self.component, RepoApplication):
             # For repo apps build a list of installed packages
             self.installed_packages = list(set(self.component.package) & set([t[0] for t in installed_package_tuples]))
             if len(self.installed_packages) == len(self.component.package):
@@ -198,7 +136,7 @@ class Deployment(SiteObject):
                 self._status = "Missing"
             else:
                 self._status = "PartiallyInstalled"
-        elif isinstance(self.component, sitemgt.NonRepoApplication):
+        elif isinstance(self.component, NonRepoApplication):
             # For non repo apps can only check existence of a path 
             if hasattr(self.component,"install_location"):
                 if os.path.exists(self.component.install_location):
@@ -208,7 +146,7 @@ class Deployment(SiteObject):
             else:
                 self._status = "Unknown"
                 self.error = "No install_location to test for NonRepoApplication"
-        elif isinstance(self.component, sitemgt.OtherFile):
+        elif isinstance(self.component, OtherFile):
             # For other files we can only check existence of a path
             if os.path.exists(os.path.join(self.component.directory,self.component.filename)):
                 self._status = "Installed"
@@ -265,7 +203,7 @@ class Deployment(SiteObject):
             self._status = x_element.get('status')
             if x_element.get('error') is not None:
                 self.error = x_element.get('error')
-            if isinstance(self.component, sitemgt.RepoApplication):
+            if isinstance(self.component, RepoApplication):
                 self.installed_packages = [x_i.get('name') for x_i in x_element.findall('Installed')]
  
     def missingPackages(self):

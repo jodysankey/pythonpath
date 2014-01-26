@@ -10,8 +10,9 @@
 __author__="Jody"
 __date__ ="$Date:$"
 
-from .general import SiteObject, GOOD, DEGD, FAIL, FAULT, OFF
 import os
+
+from .general import SiteObject, GOOD, DEGD, FAIL, FAULT, OFF
 
 class Language(SiteObject):
     """An interpreted language for scripting""" 
@@ -32,10 +33,10 @@ class Component(SiteObject):
 
     _expand_dicts = [['dependencies','deployments']]
 
-    def __init__(self, x_element, type):
+    def __init__(self, x_element, typename):
         """Initialize the object"""      
         # Set basic attributes 
-        SiteObject.__init__(self,x_element,type)
+        SiteObject.__init__(self,x_element,typename)
         #Initially just store the dependent and relation names; objects will be linked during linkComponentSet
         self.dependencies = {}
         for x_dep in x_element.findall('RequiredComponent'):
@@ -116,12 +117,12 @@ class OtherFile(Component):
 class CmComponent(Component):
     """A software component managed through a CM repository"""
 
-    def __init__(self, x_element, type):
+    def __init__(self, x_element, typename):
         """Initialize the object"""      
         # Set basic attributes including CM attributes to default if not explicit in the XML
         if x_element.get('cm_location') is not None and x_element.get('cm_filename') is None:
             self.cm_filename = x_element.get('name')
-        Component.__init__(self,x_element,type)
+        Component.__init__(self,x_element,typename)
 
     def _classLink(self, siteDescription):
         """Initialize references to other component/language objects"""

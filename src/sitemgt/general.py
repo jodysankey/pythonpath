@@ -22,14 +22,12 @@ class Health(object):
 
     def __str__(self):
         return self.name
-    
     def __lt__(self,other):
         return self.value < other.value
     def __le__(self,other):
         return self.value <= other.value
     def __ge__(self,other):
         return self.value >= other.value
-    
 
     @staticmethod
     def worst(comparison_list):
@@ -59,8 +57,8 @@ class CheckOutcome(object):
     """A single outcome of an automatic check, capable of writing and reading from a results file.
        Each line of the results file is in the form: 
             datetime, outcome, [value], [threshold], description
-       where datetime is local time and standard format, outcome is 'pass' or 'fail', and (if present 
-       value and threshold) are numbers. For laziness of CSV parsing, the description string does not 
+       where datetime is local time and standard format, outcome is 'pass' or 'fail', and (if present) 
+       value and threshold are numbers. For laziness of CSV parsing, the description string does not 
        contain any commas"""
     def __init__(self, success, description, value=None, threshold=None, timestamp=None):
         self.timestamp = datetime.now() if timestamp is None else timestamp
@@ -122,6 +120,33 @@ class CheckOutcome(object):
             except ValueError:
                 raise ValueError('Invalid number or date format ({})'.format(fileString))
 
+def initializeObjectFromXmlElement(obj, x_element, remap_dict):
+    """Sets fields on an object equal to attributes on an XML element. If the attribute exists
+    in remap_dict mapped to None it will be omitted, if the attribute exists in remap_dict 
+    mapped to a different string it will be output with this name""" 
+    for (att_name, att_value) in x_element.items():
+        if att_name in remap_dict.keys():
+            if remap_dict[att_name] is None:
+                pass # Don't include this attribute
+            else:
+                setattr(obj, remap_dict[att_name], att_value)
+        else:
+            setattr(obj, att_name, att_value)
+
+def initializeXmlElementFromObject(x_element, obj, remap_dict):
+    """Sets attributes on an XmlElement equal to simple fields on a python object. If the field 
+    exists in remap_dict mapped to None it will be omitted, if the field exists in remap_dict 
+    mapped to a different string it will be output with this name""" 
+    for att_name in [x for x in obj.__dict__.keys() if type(obj.__dict__[x]) == type('')]:
+        att_value = obj.__dict__[att_name] 
+        if att_name in remap_dict.keys():
+            if remap_dict[att_name] is None:
+                pass # Don't include this attribute
+            else:
+                x_element.set(remap_dict[att_name], att_value)
+        else:
+            x_element.set(att_name, att_value)
+  
 
 class SiteObject(object):
     """An abstract base class for site entities created using a XML etree.ElementTree.Element"""
@@ -130,17 +155,11 @@ class SiteObject(object):
     _expand_objects = []
     
     def __init__(self, x_element, type_name):
-        """Initialize all XML attributes as properties, and sets a type name"""
+        """Initialize all XML attributes as properties, and sets a typename name"""
         self._health = None
         self._status = None
         self.type = type_name
-        for (a_name, a_value) in x_element.items():
-            if a_name == 'status':
-                self._status = a_value
-            elif a_name == 'health':
-                self._health = a_value #This doesn't happen currently, but include for protection
-            else:
-                setattr(self, a_name, a_value)
+        initializeObjectFromXmlElement(self, x_element, {'status':'_status', 'health':'_health'})
 
     def __str__(self):
         """Return a string representation"""

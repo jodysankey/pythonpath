@@ -13,16 +13,18 @@
 # software components onto Hosts
 #========================================================
 
-
-from .general import SiteObject, Health, FAIL, DEGD, FAULT, UNKNOWN, OFF, GOOD
-
-import sitemgt
-
 import socket
 import subprocess
 import datetime
 import tagwriter
 import xml.etree.ElementTree
+import os
+
+from .paths import getDeploymentFile
+from .functionality import ActorRequirement
+from .general import SiteObject, Health, FAIL, DEGD, FAULT, UNKNOWN, OFF, GOOD
+from .deployment import Deployment
+
 
  
 def _splitAptitudeLine(line):
@@ -37,10 +39,10 @@ class Actor(SiteObject):
     _expand_dicts = [['members', 'groups', 'responsibility_dict', 'requirement_dict', 'expected_deployments']]
     _expand_objects = []
 
-    def __init__(self, x_definition, x_functionality, is_group, type):
+    def __init__(self, x_definition, x_functionality, is_group, typename):
         """Initialize the object"""        
         # Set basic attributes
-        SiteObject.__init__(self, x_definition, type)
+        SiteObject.__init__(self, x_definition, typename)
         
         # Mark dictionaries with blanks until link attaches them
         self.responsibilities = {}
@@ -54,7 +56,7 @@ class Actor(SiteObject):
         self.requirements = {}
         if x_functionality is not None:
             for x_req in x_functionality.findall('*'):
-                req = sitemgt.ActorRequirement(x_req, self)
+                req = ActorRequirement(x_req, self)
                 self.requirements[req.uid] = req
 
     def _classLink(self, siteDescription):
@@ -108,7 +110,7 @@ class Host(Actor):
             self.expected_deployments[component.name]._addRequirement(requirement, primary)
         else:
             # Must create a new deployment
-            depl = sitemgt.Deployment(self, component)
+            depl = Deployment(self, component)
             depl._addRequirement(requirement, primary)
         # Now mark this same requirement as secondary for any components necessary to support this component
         for dep_component in component.dependencies.values():
@@ -127,7 +129,7 @@ class Host(Actor):
             self.expected_deployments[component.name].location = location
         else:
             # Must create a new deployment (it will link itself to us)
-            sitemgt.Deployment(self, component, location)
+            Deployment(self, component, location)
     
 
     def gatherDeploymentStatus(self, cm_working_root):
@@ -164,23 +166,6 @@ class Host(Actor):
 
         self.status_date = datetime.datetime.today()
 
-
-    def saveDeploymentStatus(self, filename):
-        """Dumps the current component deployment status using an XML tag writer object on the specified file"""
-        tag_writer = tagwriter.TagWriter(filename)
-        tag_writer.open('DeploymentStatus')
-        tag_writer.open('Host','name="{}" date="{}"'.format(self.name, self.status_date.strftime("%Y-%m-%d %H:%M")))
-
-        for depl in self.expected_deployments.values():
-            depl.saveStatus(tag_writer)            
-        for pkg in self.upgradable_packages:
-            tag_writer.write('Upgradable','name="{}" description="{}"'.format(pkg[0],pkg[1]))
-        for pkg in self.unexpected_packages:
-            tag_writer.write('Unexpected','name="{}" description="{}"'.format(pkg[0],pkg[1]))
-
-        tag_writer.close(2)
-
-
     def resetDeploymentStatus(self):      
         """Clears all existing component deployment information"""
         self.resetHealth()
@@ -194,13 +179,31 @@ class Host(Actor):
         for depl in self.expected_deployments.values():
             depl.resetStatus()            
 
+    def deploymentFileExists(self):
+        """Returns true if the standard XML deployment file for the host exists"""
+        return os.path.exists(getDeploymentFile(self.name))
+
+    def saveDeploymentStatusToXmlFile(self):
+        """Dumps the current component deployment status using an XML tag writer object on the standard file"""
+        tag_writer = tagwriter.TagWriter(getDeploymentFile(self.name))
+        tag_writer.open('DeploymentStatus')
+        tag_writer.open('Host','name="{}" date="{}"'.format(self.name, self.status_date.strftime("%Y-%m-%d %H:%M")))
+
+        for depl in self.expected_deployments.values():
+            depl.saveStatus(tag_writer)            
+        for pkg in self.upgradable_packages:
+            tag_writer.write('Upgradable','name="{}" description="{}"'.format(pkg[0],pkg[1]))
+        for pkg in self.unexpected_packages:
+            tag_writer.write('Unexpected','name="{}" description="{}"'.format(pkg[0],pkg[1]))
+
+        tag_writer.close(2)
         
-    def loadDeploymentStatus(self, filename):      
-        """Load the component deployment status from the named file, using an XML ElementTree"""
+    def loadDeploymentStatusFromXmlFile(self):      
+        """Load the component deployment status from the standard file, using an XML ElementTree"""
         self.resetDeploymentStatus()
         
         # Find root element and check it is for the correct host
-        book = xml.etree.ElementTree.parse(filename).getroot()
+        book = xml.etree.ElementTree.parse(getDeploymentFile(self.name)).getroot()
         x_host = book.find('Host')
         if x_host.get('name') == self.name:
             self.status_date = datetime.datetime.strptime(x_host.get('date'), "%Y-%m-%d %H:%M")

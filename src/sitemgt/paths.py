@@ -22,3 +22,7 @@ CM_WORKING_DIR = os.path.join(SITE_BASE_DIR, "svn")
 def getDeploymentFile(host_name):
     """Return the qualified path name of the deployment record for the specified host"""
     return os.path.join(SITE_BASE_DIR, "status/{}_deployment.xml".format(host_name))
+
+def getStatusReportFile(host_name):
+    """Return the qualified path name of the deployment record for the specified host"""
+    return os.path.join(SITE_BASE_DIR, "status/{}_status_report.xml".format(host_name))

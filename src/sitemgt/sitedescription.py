@@ -14,12 +14,10 @@
 #========================================================
 
 import xml.etree.ElementTree
-import os
 
 from .functionality import Capability
 from .actors import User, Host, UserGroup, HostGroup
 from .software import Script, RepoApplication, NonRepoApplication, ConfigFile, OtherFile, Language
-from .paths import getDeploymentFile
 
 __author__="Jody"
 __date__ ="$Date:$"
@@ -54,10 +52,10 @@ class SiteDescription(object):
     """A class to parse and represent a SiteDescription file"""
 
     def __init__(self,filename):
-        """Initialize the site description object, building dictionaries for each type of information"""
+        """Initialize the site description object, building dictionaries for each typename of information"""
         self.filename = filename
         
-        # Find XML root elements for each key type of information
+        # Find XML root elements for each key typename of information
         tree = xml.etree.ElementTree.parse(filename)
         book = tree.getroot()
         x_actors = book.find('Actors')
@@ -77,7 +75,7 @@ class SiteDescription(object):
         for x_af in x_func.findall('*'):
             actor_x_funcs[x_af.get('name')] = x_af
 
-        # Build each different type of actor, passing pointers to both XML elements which define it
+        # Build each different typename of actor, passing pointers to both XML elements which define it
         self.users = makeActorDictionary(User, x_actors.findall('User'), actor_x_funcs)
         self.user_groups = makeActorDictionary(UserGroup, x_actors.findall('UserGroup'), actor_x_funcs)
         self.hosts = makeActorDictionary(Host, x_actors.findall('Host'), actor_x_funcs)
@@ -117,13 +115,12 @@ class SiteDescription(object):
         for actor in self.actors.values():
             actor._crossLink(self)
         
-    def loadDeploymentStatus(self):
+    def loadDeploymentStatusFromXmlFile(self):
         """Loads deployment files for every host with a file matching filename_format"""
         for host in self.hosts.values():
-            host_deployment_file = getDeploymentFile(host.name)
             host.resetDeploymentStatus()
-            if os.path.exists(host_deployment_file):
-                host.loadDeploymentStatus(host_deployment_file)
+            if host.deploymentFileExists():
+                host.loadDeploymentStatusFromXmlFile()
 
     def __str__(self):
         """Return a string representation"""

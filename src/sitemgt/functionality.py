@@ -13,12 +13,11 @@
 # ActorRequirements
 #========================================================
 
+import os
 
 from .general import SiteObject, Health, CheckOutcome, OFF, UNKNOWN, GOOD, FAULT, DEGD, FAIL
 from .paths import CHECK_RESULTS_DIR
 
-from datetime import datetime, timedelta
-import os
 
 #Library functions
 def _readLastLineFromFile(filename):
