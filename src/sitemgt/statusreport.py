@@ -44,6 +44,10 @@ def getIpV6AddressCount():
     lines = subprocess.check_output(['ip','-o','-6','addr']).decode("utf-8").split("\n")
     return len(lines)
 
+def getKernelVersion():
+    uname = subprocess.check_output(['uname','-a']).decode("utf-8")
+    return uname.split(" ")[2]
+
 
 # Define an ordered list of the fields we will define, including pointers to the
 # functions used to calculate and optionally format them
@@ -53,6 +57,7 @@ _STANDARD_FIELDS = [
     {'name':'timestamp', 'header':'Date', 'formatFn':None, 'calcFn':getCurrentTime},
     {'name':'ip_v4', 'header':'IP Address', 'formatFn':None, 'calcFn':getIpV4Address},
     {'name':'ip_v6_count', 'header':None, 'formatFn':None, 'calcFn':getIpV6AddressCount},
+    {'name':'kernel', 'header':'Kernel ', 'formatFn':None, 'calcFn':getKernelVersion},
                     ]
 _PREFIX_FIELDS = [ 
     {'prefix':'disk_', 'headerFn':None, 'formatFn':None, 'calcFn':getHostName},
