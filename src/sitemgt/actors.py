@@ -20,12 +20,13 @@ import tagwriter
 import xml.etree.ElementTree
 import os
 
-from .paths import getDeploymentFile
+from .paths import getDeploymentFile, getStatusReportFile
 from .functionality import ActorRequirement
 from .general import SiteObject, Health, FAIL, DEGD, FAULT, UNKNOWN, OFF, GOOD
 from .deployment import Deployment
+from .statusreport import HostStatusReport
 
-
+_MAX_STATUS_REPORTS = 100
  
 def _splitAptitudeLine(line):
     """Splits an aptitude output line into its package name and package description"""
@@ -165,6 +166,14 @@ class Host(Actor):
             depl.gatherStatus(installed_packages, cm_working_root)
 
         self.status_date = datetime.datetime.today()
+
+    def getStatusReportList(self):
+        """Returns a list of the top X status reports from the standard file, if this exists"""
+        status_filename = getStatusReportFile(self.name)
+        if os.path.exists(status_filename):
+            return HostStatusReport.createListFromXmlFile(status_filename, _MAX_STATUS_REPORTS)
+        else:
+            return []
 
     def resetDeploymentStatus(self):      
         """Clears all existing component deployment information"""

@@ -9,6 +9,8 @@
 
 import os
 import socket
+import subprocess
+import re
 from datetime import datetime
 from xml.etree.ElementTree import ElementTree, Element, parse
 
@@ -24,8 +26,21 @@ def getHostName():
 def getCurrentTime():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+def getIpV4Address():
+    addresses = []
+    lines = subprocess.check_output(['ip','-o','-4','addr']).decode("utf-8").split("\n")
+    for line in lines:
+        mo = re.search(r"inet (\d+\.\d+\.\d+\.\d+/\d+)", line)
+        # Strip local host for clarity
+        if mo != None and mo.group(1) != '127.0.0.1/8':
+            addresses.append(mo.group(1))
+    return ";".join(addresses)
 
-
+def getIpV6AddressCount():
+    # Only trying to prove there are no v6 addresses, and I'm not completely sure what
+    # one would look like if it existed anyway, so just get a count instead of the addresses
+    lines = subprocess.check_output(['ip','-o','-6','addr']).decode("utf-8").split("\n")
+    return lines.count()
 
 
 # Define an ordered list of the fields we will define, including pointers to the
@@ -34,6 +49,8 @@ def getCurrentTime():
 _STANDARD_FIELDS = [ 
     {'name':'host', 'header':None, 'formatFn':None, 'calcFn':getHostName},
     {'name':'timestamp', 'header':'Date', 'formatFn':None, 'calcFn':getCurrentTime},
+    {'name':'ip_v4', 'header':'IP Address', 'formatFn':None, 'calcFn':getIpV4Address},
+    {'name':'ip_v6_count', 'header':None, 'formatFn':None, 'calcFn':getIpV6AddressCount},
                     ]
 _PREFIX_FIELDS = [ 
     {'prefix':'disk_', 'headerFn':None, 'formatFn':None, 'calcFn':getHostName},
@@ -117,11 +134,11 @@ class HostStatusReport(object):
     
     def getFormattedAttribute(self, attribute_name):
         if attribute_name in self.att_map:
-            fld = self.att_map['attribute_name']
+            fld = self.att_map[attribute_name]
             if fld['formatFn']:
                 return fld['formatFn'](getattr(self,attribute_name))
             else:
-                return str(self,attribute_name)
+                return str(getattr(self,attribute_name))
         else:
             return ""
     
