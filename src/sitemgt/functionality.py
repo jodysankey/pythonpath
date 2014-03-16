@@ -59,7 +59,7 @@ class SystemRequirement(SiteObject):
         for x_ck in x_element.findall('AutomaticCheck'):
             self.automatic_checks.append(AutomaticCheck(x_ck, self))
         for x_ck in x_element.findall('ManualCheck'):
-            self.automatic_checks.append(ManualCheck(x_ck, self))
+            self.manual_checks.append(ManualCheck(x_ck, self))
         if len(self.automatic_checks) > 0:
             self.verification = SystemRequirement.AUTOMATIC_TEST
         elif len(self.manual_checks) > 0:
@@ -159,9 +159,14 @@ class SystemRequirement(SiteObject):
             self._health = FAULT
             self._status = "Blemished requirement decomposition"
         else:
-            #TODO: work out how to set health based on software installation when that matters
-            self._health = OFF
-            self._status = "Reached default case"
+            # Set health based on deployment health for all hard requirements
+            self._health = GOOD
+            self._status = "Deployment OK"
+            for ar in self.actor_requirement_list:
+                if hasattr(ar, 'deployments'):
+                    if Health.worst([ar.health, self._health]) != self._health:
+                        self._health = ar.health
+                        self._status = ar.status
 
 
 class AutomaticCheck(SiteObject):

@@ -26,6 +26,8 @@ class Health(object):
         return self.value < other.value
     def __le__(self,other):
         return self.value <= other.value
+    def __gt__(self,other):
+        return self.value > other.value
     def __ge__(self,other):
         return self.value >= other.value
 
@@ -52,6 +54,7 @@ FAULT = Health(1,"fault")
 DEGD = Health(2,"degrade")
 FAIL = Health(3,"fail")
 
+HEALTH_CALC_MARKER = "health_status_calculation_in_progress"
 
 class CheckOutcome(object):
     """A single outcome of an automatic check, capable of writing and reading from a results file.
@@ -203,15 +206,23 @@ class SiteObject(object):
     @property
     def health(self):
         """Return the current health as an enumeration, requesting calculation if unavailable"""
+        if hasattr(self,HEALTH_CALC_MARKER):
+            raise Exception("Circular dependency calculating health and status of " + self.name)
         if self._health is None:
+            setattr(self,HEALTH_CALC_MARKER,True)
             self._setHealthAndStatus()
+            delattr(self,HEALTH_CALC_MARKER)
         return self._health
 
     @property
     def status(self):
         """Return the current health as an enumeration, requesting calculation if unavailable"""
+        if hasattr(self,HEALTH_CALC_MARKER):
+            raise Exception("Circular dependency calculating health and status of " + self.name)
         if self._status is None:
+            setattr(self,HEALTH_CALC_MARKER,True)
             self._setHealthAndStatus()
+            delattr(self,HEALTH_CALC_MARKER)
         return self._status
     
     def htmlName(self):
