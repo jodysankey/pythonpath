@@ -37,7 +37,7 @@ def mountSiteDir():
     """Mount the site directory if it is not currently mounted. Returns a token which may
     be passed to unmountSiteDir to ensure a symmetric response"""
     mounts = subprocess.check_output(["mount"]).decode("utf-8").split("\n")
-    if len([m for m in mounts if (" " + SITE_BASE_DIR + " ") in m]):
+    if len([m for m in mounts if (" " + SITE_BASE_DIR + " ") in m]) == 0:
         # Site path not found in mount table, do the mount - this may fail if not root
         subprocess.check_output(["mount",SITE_BASE_DIR])
         return True
