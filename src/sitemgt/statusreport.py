@@ -51,7 +51,7 @@ def getKernelVersion():
 
 def getTimeError():
     diff = time_error.getTimesAndDifference()['difference']
-    return ("ERR" if diff is None else "{+d}".format(diff))
+    return ("ERR" if diff is None else "{:+d}".format(diff))
 
 # Define an ordered list of the fields we will define, including pointers to the
 # functions used to calculate and optionally format them
