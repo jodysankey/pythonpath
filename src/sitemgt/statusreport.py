@@ -14,6 +14,7 @@ import re
 from datetime import datetime
 from xml.etree.ElementTree import ElementTree, Element, parse
 
+import time_error
 from .general import initializeObjectFromXmlElement, initializeXmlElementFromObject
 
 _ELEMENT_NAME = "Report"
@@ -48,6 +49,9 @@ def getKernelVersion():
     uname = subprocess.check_output(['uname','-a']).decode("utf-8")
     return uname.split(" ")[2]
 
+def getTimeError():
+    diff = time_error.getTimesAndDifference()['difference']
+    return ("ERR" if diff is None else "{+d}".format(diff))
 
 # Define an ordered list of the fields we will define, including pointers to the
 # functions used to calculate and optionally format them
@@ -58,7 +62,9 @@ _STANDARD_FIELDS = [
     {'name':'ip_v4', 'header':'IP Address', 'formatFn':None, 'calcFn':getIpV4Address},
     {'name':'ip_v6_count', 'header':None, 'formatFn':None, 'calcFn':getIpV6AddressCount},
     {'name':'kernel', 'header':'Kernel ', 'formatFn':None, 'calcFn':getKernelVersion},
-                    ]
+    {'name':'time_error', 'header':'Time Error (sec)', 'formatFn':None, 'calcFn':getTimeError},
+                   ]
+
 _PREFIX_FIELDS = [ 
     {'prefix':'disk_', 'headerFn':None, 'formatFn':None, 'calcFn':getHostName},
     ]
