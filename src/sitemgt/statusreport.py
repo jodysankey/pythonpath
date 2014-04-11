@@ -3,7 +3,7 @@
 #========================================================
 # PublicPermissions: True
 #========================================================
-# Defines an enxandable and XML portable report of the
+# Defines an expandable and XML portable report of the
 # status for a host
 #========================================================
 
@@ -53,6 +53,10 @@ def getTimeError():
     diff = time_error.getTimesAndDifference()['difference']
     return ("ERR" if diff is None else "{:+d}".format(diff))
 
+def formatTimeError(value):
+    try:                return "{:+d} seconds".format(int(value))
+    except ValueError:  return value
+
 # Define an ordered list of the fields we will define, including pointers to the
 # functions used to calculate and optionally format them
 
@@ -62,7 +66,7 @@ _STANDARD_FIELDS = [
     {'name':'ip_v4', 'header':'IP Address', 'formatFn':None, 'calcFn':getIpV4Address},
     {'name':'ip_v6_count', 'header':None, 'formatFn':None, 'calcFn':getIpV6AddressCount},
     {'name':'kernel', 'header':'Kernel ', 'formatFn':None, 'calcFn':getKernelVersion},
-    {'name':'time_error', 'header':'Time Error (sec)', 'formatFn':None, 'calcFn':getTimeError},
+    {'name':'time_error', 'header':'Time Error', 'formatFn':formatTimeError, 'calcFn':getTimeError},
                    ]
 
 _PREFIX_FIELDS = [ 
