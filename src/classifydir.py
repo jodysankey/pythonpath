@@ -13,47 +13,47 @@
 # as determined by .classify files
 #========================================================
 
-
-#Imports (all are used even if eclipse struggles)
-import os       #@UnusedImport
+import base64
+import hashlib
+import os
 import stat
-import operator
 
-__author__="Jody"
+__author__ = "Jody"
 
+MAGIC_FILE = ".classify"
 
-MAGIC_FILE=".classify"
-T_T="TOTAL"
-
-required_settings = {
+REQUIRED_SETTINGS = {
     'volume':[
-        ('small','HDD, CF, 4 copies per SD'),
-        ('medium','HDD, CF, 2 copies per SD'),
-        ('large','HDD, CF backup only'),
-        ('huge','HDD backup only'),
-        ('none','Not included in backup'),
+        ('small', 'HDD, CF, 4 copies per SD', '\033[38;5;38m'),
+        ('medium', 'HDD, CF, 2 copies per SD', '\033[38;5;47m'),
+        ('large', 'HDD, CF backup only', '\033[38;5;190m'),
+        ('huge', 'HDD backup only', '\033[38;5;220m'),
+        ('none', 'Not included in backup', '\033[38;5;247m'),
     ],
     'protection':[
-        ('secret','Always encrypted'),
-        ('confidential','Encrypted on removable media'),
-        ('restricted','Access control only'),
-        ('none','No controls or encryptions'),
+        ('secret', 'Always encrypted', '\033[38;5;165m'),
+        ('confidential', 'Encrypted on removable media', '\033[38;5;196m'),
+        ('restricted', 'Access control only', '\033[38;5;208m'),
+        ('none', 'No controls or encryptions', '\033[38;5;216m'),
     ],
     'recurse':[
         ('true', 'Apply to child directories'),
-        ('false','Do not apply to child directories'),
+        ('false', 'Do not apply to child directories'),
     ],
     'compress':[
         ('true', 'Data will compress successfully'),
-        ('false','Data will not compress significantly'),
+        ('false', 'Data will not compress significantly'),
     ],
 } 
+OPTIONAL_SETTINGS = ['name']
 
-optional_settings = ['name']
+VOLUMES = [entry[0] for entry in REQUIRED_SETTINGS['volume'] if entry[0] != 'none']
+PROTECTIONS = [entry[0] for entry in REQUIRED_SETTINGS['protection']]
 
+VOLUME_COLORS = {entry[0]: entry[2] for entry in REQUIRED_SETTINGS['volume']}
+PROTECTION_COLORS = {entry[0]: entry[2] for entry in REQUIRED_SETTINGS['protection']}
 
 # Status = implicit,explicit,undefined
-
  
               
 class ClassifiedDir(object):
@@ -61,196 +61,34 @@ class ClassifiedDir(object):
     directory, as declared by magic .classify files."""
 
 
-    def classDirList(self,volume=None,protection=None):
-        """Return a list of all child directory classifydir objects
-        filtering to volume and/or protection where specified"""
-        ret = []
-        if self.status == 'explicit' and self.__matches(volume,protection):
-            ret.append(self)
-        for child in self.children:
-            ret += child.classDirList(volume,protection)
-        return ret
-
-    
-    def dirList(self,volume=None,protection=None):
-        """Return a list of all child directory (volume,protection,compress,rel_path,name)
-        tuples filtering to volume and/or protection where specified"""
-        ret = []
-        if self.__matches(volume,protection):
-            ret.append([self.volume,self.protection,self.compress,self.rel_path,self.name])
-        for child in self.children:
-            ret += child.dirList(volume,protection)
-        return ret
-
-    def totalSize(self,volume=None,protection=None):
-        """Return total size of directory and all children, filtering
-        to volume and/or protection where specified"""
-        if self.size == None:
-            return None
-        total = self.size if self.__matches(volume,protection) else 0
-        for child in self.children:
-            total += child.totalSize(volume,protection)
-        return total
-
-    def fileCount(self,volume=None,protection=None):
-        """Return total number of files in directory and all children, 
-        filtering to volume and/or protection where specified"""
-        if self.file_count == None:
-            return None
-        total = self.file_count if self.__matches(volume,protection) else 0
-        for child in self.children:
-            total += child.fileCount(volume,protection)
-        return total
-
-
-    def dirCount(self,volume=None,protection=None):
-        """Return total number of directories in directory and all  
-        children, filtering to volume and/or protection where specified"""
-        if self.file_count == None:
-            return None
-        total = 1 if self.__matches(volume,protection) else 0
-        for child in self.children:
-            total += child.dirCount(volume,protection)
-        return total
-
-    def preferredMechanism(self):
-        """Return the preferred mechanism for backing up the directory
-        according to the classification and compression: one of
-        jxx or zip or copy"""
-        if self.protection == 'secret' or self.protection == 'confidential':
-            return 'jxx'
-        elif self.compress or not self.recurse:
-            return 'zip'
-        else:
-            return 'copy'
-
-    def __matches(self,volume,protection):
-        return (self.status != 'undefined' and 
-            (volume==None or volume==self.volume) and 
-            (protection==None or protection==self.protection))
-
-    def printSummary(self):
-        """Print a nested tree of all directories"""
-        self.__printSummary(0)
-
-    def __printSummary(self,depth):
-        """Internal recursive function to print a nested tree of all directories"""
-        if self.status == 'undefined':
-            tag = '  -  '
-        elif self.status == 'implicit':
-            tag = '  >  '
-        elif self.recurse:
-            tag = "[{},{}]".format(self.volume[0].upper(),self.protection[0].upper())
-        else:
-            tag = "({},{})".format(self.volume[0].upper(),self.protection[0].upper())
-        
-        if self.base_name != self.name:
-            qname = "{} <{}>".format(self.base_name,self.name)
-        else:
-            qname = self.base_name
-        if not self.completed:
-            qname += " ..."     # Indicates there may be more directories underneath
-
-        if self.size != None:
-            line = "{}{}{}{: <7}{}{}".format("  "*depth,qname," "*(45-len(qname)-depth),
-                                        self.__humanSize(self.totalSize())," "*(8-depth),tag)
-        else:
-            line = "{}{}{}{}".format("  "*depth,qname," "*(50-len(qname)-depth*2),tag)
-        
-        print(line)
-        
-        for child in self.children:
-            child.__printSummary(depth+1)
-
-
-    def printTable(self):
-        """Function to print a grid of file/dir count by classification"""
-        protections = [opt[0] for opt in required_settings['protection']] + [None]
-        volumes = [opt[0] for opt in required_settings['volume']] + [None]
-        
-        #Calculate the contents of each cell first
-        entries = [[('','','')]+[('',T_T,'') if v==None 
-            else ('',v.capitalize(),'') for v in volumes]] 
-        for p in protections:
-            row_data = [('',T_T if p==None else p.capitalize(),'')]
-            for v in volumes:
-                files = self.fileCount(v,p)
-                dirs = self.dirCount(v,p)
-                size = self.totalSize(v,p)
-                if files==None:
-                    row_data.append(('',"N/A",''))
-                elif files>0:
-                    row_data.append((str(files),str(dirs),self.__humanSize(size)))
-                else:
-                    row_data.append(('','-',''))
-            entries.append(row_data)
-        
-        #Summarize the widest thing in each column
-        widths = []
-        for c in range(len(entries[0])):
-            widths.append(0)
-            for r in range(len(entries)):
-                widths[c] = max([widths[c]]+[len(s) for s in entries[r][c]])
-            #widths.append(max([len(entries[r][c]) for r in range(len(entries))]))
-
-        #Build standard strings for the header and divider
-        hdr = ' ' + ' '*(widths[0]+2) + '+'
-        div = '+' + '-'*(widths[0]+2) + '+'
-        for w in widths[1:]:
-            hdr += '-'*(w+2) + '+'
-            div += '-'*(w+2) + '+'
-            
-                
-        #Then do the work
-        print(hdr)
-        for r in range(len(entries)):
-            lines = [' ' if r==0 else '|']*3
-            for c in range(len(widths)):
-                fmt = " {0: " + ('>' if c==0 else '^') + str(widths[c]) + "} |"
-                for l in range(3):
-                    lines[l] += fmt.format(entries[r][c][l])
-            for line in lines:
-                print(line)
-            print(div)
-        
-
-
-
-    def __humanSize(self,bytes):
-        """Return number of bytes rounded to a sensible scale"""
-        """TODO: Put this in a standard library somewhere"""
-        sz = bytes
-        for ut in ['B','kB','MB','GB','TB']:
-            if sz<10 and ut!='B ':
-                return "{0:.1f} {1}".format(sz,ut)
-            elif sz<1024:
-                return "{0:.0f} {1}".format(sz,ut)
-            sz /= 1024
-        return "ERR"
-
-            
-    def __init__(self,base_path,get_all,rel_path='',parent=None):
-        """Initialize all attributes"""
+    def __init__(self, base_path, rel_path, fetch_info, max_recursion_depth=999, parent=None):
+        """initialize all attributes"""
         self.base_name = os.path.basename(rel_path)
-        self.name = self.base_name
         self.rel_path = rel_path
-        self.full_path = os.path.join(base_path,rel_path)
+        self.full_path = os.path.join(base_path, rel_path)
+        self.parent = parent
+        self.depth = parent.depth + 1 if parent else 0
+        self.recursion_depth = 0
+        self.deepest_explicit = -1
         self.children = []
+        self.size = 0 if fetch_info else None
+        self.file_count = 0 if fetch_info else None
 
-        magic = os.path.join(self.full_path,MAGIC_FILE)
-
-        #Detect and read the magic file if appropriate
-        if os.path.isfile(magic):
-            if parent and parent.status != 'undefined' and parent.recurse:
-                raise Exception("Classification file " + magic +
+        # detect and read the magic file if appropriate
+        config_file = os.path.join(self.full_path, MAGIC_FILE)
+        if os.path.isfile(config_file):
+            if parent and parent.__status != 'undefined' and parent.recurse:
+                raise Exception("classification file " + config_file +
                                 " inside recursively classified directory")
-            self.status = 'explicit'
-            self.__readFile()
+            self.__status = 'explicit'
+            self.__readConfigurationFile(config_file)
+            self.__propogateDeepestExplicit()
         else:
-            if not parent or parent.status == 'undefined':                
-                self.status = 'undefined'
-                self.volume = 'none'
-                self.protection = 'none'
+            self.name = self.base_name
+            if not parent or parent.__status == 'undefined':                
+                self.__status = 'undefined'
+                self.volume = None
+                self.protection = None
                 self.compress = False
                 self.recurse = False
             elif not parent.recurse:
@@ -258,98 +96,179 @@ class ClassifiedDir(object):
                                 "non-recursive classified directory " +
                                 "but does not contain classification file")
             else:
-                self.status = 'implicit'
+                self.__status = 'implicit'
                 self.volume = parent.volume
                 self.protection = parent.protection
                 self.compress = parent.compress
                 self.recurse = parent.recurse
-                    
-        #If we are recursive and haven't been asked to get everything 
-        #this is now good enough
-        self.completed = (get_all or self.status=='undefined' or not self.recurse)
-        self.size = 0 if get_all else None
-        self.file_count = 0 if get_all else None
+                if parent.recurse:
+                    self.recursion_depth = parent.recursion_depth + 1
+        if (not self.recurse) or fetch_info or self.recursion_depth < max_recursion_depth:
+            self.__readContents(base_path, fetch_info, max_recursion_depth)
+
+    def descendants(self):
+        """generator function for all descendant or self classifydir objects."""
+        # Stack is a list of remaining node lists for each level in a DFS 
+        to_visit = [self]
+        while to_visit:
+            node = to_visit.pop(0)
+            yield node
+            to_visit[:0] = node.children
+
+    def descendantRoots(self):
+        """generator function for descendant or self classifydirs that are an archive root."""
+        for decendent in self.descendants():
+            if decendent.isArchiveRoot():
+                yield decendent
+    
+    def descendantMembers(self):
+        """generator function for descendant or self classifydirs inside the current archive. This
+        method may only be called on an archive root."""
+        if not self.isArchiveRoot():
+            raise Exception(self.base_name + ' is not an archive root') 
+        for descendant in self.descendants():
+            if descendant.archiveRoot() is self:
+                yield descendant
+    
+    def totalSize(self):
+        """return total size of directory and all children"""
+        if self.size == None:
+            return None
+        else:
+            return sum((cd.size for cd in self.descendants()))
+
+    def totalFileCount(self):
+        """return total number of files in directory and all children"""
+        if self.file_count is None:
+            return None
+        else:
+            return sum((cd.file_count for cd in self.descendants()))
+
+    def archiveRoot(self):
+        """return the classified dir at the root of this archive, or none if not archived"""
+        if self.__status == 'undefined' or self.volume == 'none':
+            return None
+        elif self.__status == 'implicit':
+            return self.parent.archiveRoot()
+        else:
+            return self
+
+    def isArchiveRoot(self):
+        """return true iff this directory is the root of an archive"""
+        return self.__status == 'explicit' and self.volume != 'none'
         
-        if not self.completed:
-            return
-            
-        for entry in os.listdir(self.full_path):
-            
-            full_entry = os.path.join(self.full_path,entry)
-            if os.path.islink(full_entry):
-                # Never follow links; it just led to badness, but do report if they are broken
-                if not os.path.exists(os.readlink(full_entry)):
-                    print('<<Path {} is a broken symlink>>'.format(full_entry))
-            else:            
-                status = os.stat(full_entry)
-                if stat.S_ISDIR(status.st_mode):
-                    child = ClassifiedDir(base_path,get_all,os.path.join(self.rel_path,entry),self)
-                    self.children.append(child)
-                elif get_all:
+    def archiveSize(self):
+        """return total size of files in an archive when called on the root"""
+        return sum(cd.size for cd in self.descendantMembers())
+
+    def archiveFileCount(self):
+        """return total number of files in an archive when called on the root"""
+        return sum(cd.file_count for cd in self.descendantMembers())
+
+    def archiveLastChange(self):
+        """return greatest file modification time in an archive when called on the root"""
+        return max(cd.last_change for cd in self.descendantMembers())
+
+    def archiveHash(self):
+        """return a string hash of file state when called on the root"""
+        hasher = hashlib.md5()
+        for cd in self.descendantMembers():
+            hasher.update(cd.content_hash)
+        return base64.urlsafe_b64encode(hasher.digest()[:6]).decode('utf-8')
+
+    def archiveFilenames(self):
+        """generator for all filenames within an archive when called on the root"""
+        for cd in self.descendantMembers():
+            files = next(os.walk(cd.full_path, topdown=True, followlinks=False))[2]
+            for entry in sorted(files):
+                entry_path = os.path.join(cd.full_path, entry)
+                status = os.lstat(entry_path)
+                if stat.S_ISREG(status.st_mode):
+                    yield entry_path
+
+    def volumeColor(self):
+        """Returns an Xterminal control string for a color reflecting required volume"""
+        return VOLUME_COLORS[self.volume]
+
+    def protectionColor(self):
+        """Returns an Xterminal control string for a color reflecting required protection"""
+        return PROTECTION_COLORS[self.protection]
+
+
+    def __readContents(self, base_path, fetch_info, max_recursion_depth):
+        """"Adds child objects and optionally sizes based on directories inside our own"""
+        dirs, files = next(os.walk(self.full_path, topdown=True, followlinks=False))[1:]
+        for entry in sorted(dirs):
+            child_path = os.path.join(self.rel_path, entry) 
+            child = ClassifiedDir(base_path, child_path, fetch_info, max_recursion_depth, self)
+            self.children.append(child)
+        if fetch_info:
+            self.last_change = 0
+            hasher = hashlib.md5()
+            for entry in sorted(files):
+                status = os.lstat(os.path.join(self.full_path, entry))
+                if stat.S_ISREG(status.st_mode):
                     self.size += status.st_size
                     self.file_count += 1
-        self.children.sort(key=operator.attrgetter('full_path'))
+                    if status.st_mtime > self.last_change:
+                        self.last_change = status.st_mtime
+                    hasher.update(entry.encode('utf-8'))
+                    hasher.update(int(status.st_mtime).to_bytes(8, byteorder='little'))
+                    hasher.update(int(status.st_size).to_bytes(8, byteorder='little'))
+            self.content_hash = hasher.digest()
 
-    
 
-    def __readFile(self):
-        """Adds hash values describing the required_settings in magic file at path"""
-    
-        # First get another function to put each line into a hash
-        magic = os.path.join(self.full_path,MAGIC_FILE)
-        hsh = {}
-
-        f = open(magic, 'r')
+    def __readConfigurationFile(self, file_path):
+        """Adds values read from the configuration file at file_path. Legal
+        settings are defined by REQUIRED_SETTINGS and OPTIONAL_SETTINGS."""
+        f = open(file_path, 'r')
         try:
-            for ln in f:
-                self.__readLine(hsh,ln)    
+            for (tag, value) in [_parseLine(l) for l in f if _parseLine(l)]:
+                self.__validateSetting(tag, value)
+                setattr(self, tag, _stringBool(value))
+            for setting in REQUIRED_SETTINGS.keys():
+                if not hasattr(self, setting):
+                    raise Exception("{} not specified".format(setting))
+            if not hasattr(self, 'name'):
+                self.name = self.base_name
         except Exception as e:
-            raise Exception("Error parsing {}: {}".format(magic,str(e)))
+            raise Exception("Error parsing {}: {}".format(file_path, str(e)))
         finally:
             f.close()
-        
-        #Check the hash contains everything we wanted
-        for setting in required_settings.keys():
-            if setting not in hsh.keys():
-                raise Exception("{} not specified in {}".format(setting,magic))
-            
-        #Then use it to populate the object
-        self.volume     = hsh['volume']
-        self.protection = hsh['protection']
-        self.recurse    = hsh['recurse']
-        self.compress   = hsh['compress']
-        if 'name' in hsh.keys():
-            self.name   = hsh['name']
-        else:
-            self.name   = self.base_name
+
+    def __propogateDeepestExplicit(self):
+        """Propogates the current depth through all ancestors with a lower value."""
+        node = self
+        while node and node.deepest_explicit < self.depth:
+            node.deepest_explicit = self.depth
+            node = node.parent
+
+    def __validateSetting(self, tag, value):
+        """Ensures the specified tag value pair is legal. Throws an exception if not."""
+        if tag in REQUIRED_SETTINGS.keys():
+            if value not in [vd[0] for vd in REQUIRED_SETTINGS[tag]]:
+                raise Exception("Invalid value '{}' for {}".format(value, tag))
+        elif tag not in OPTIONAL_SETTINGS:
+            raise Exception("Unknown setting '{}'".format(tag))            
+        if hasattr(self, tag):
+            raise Exception("Duplicate setting for {}".format(tag))
 
 
-    def __readLine(self,hsh,line):
-        """Adds a single hash value to hsh based on a single setting line"""
 
-        pre_comment = line.split('#')[0].lower().strip()
-        if len(pre_comment) == 0:
-            return
-
-        sections = pre_comment.split('=')
-        if len(sections) != 2:
-            raise Exception("Line '" + line + "' not understood")        
-        (setting,value) = [x.strip() for x in sections]
-        
-        # Must not have been used before and must be in optional, or in
-        # required and matching one of the enumerations
-        if setting in hsh.keys():
-            raise Exception("Duplicate setting for {}".format(setting))
-        if setting in required_settings.keys():
-            if value not in [set[0] for set in required_settings[setting]]:
-                raise Exception("Invalid value '{}' for {}".format(value,setting))           
-        elif not setting in optional_settings:
-            raise Exception("Unknown setting '{}'".format(setting))            
-
-        # Do the setting, converting boolean words to true boolean
-        if value == 'true':
-            hsh[setting] = True
-        elif value == 'false':
-            hsh[setting] = False
-        else:
-            hsh[setting]=value
+def _parseLine(line):
+    """If line is in the form Tag=value[#Comment] returns a (tag, value)
+    tuple, otherwise returns None"""
+    non_comment = line.split('#')[0].strip()
+    if len(non_comment) > 0:
+        tag_value = [x.strip() for x in non_comment.split('=')]
+        if len(tag_value) != 2:
+            raise Exception("Line '" + line + "' not understood")
+        return (tag_value[0], tag_value[1])
+    else:
+        return None
+    
+def _stringBool(value):
+    """Returns a matching boolean if the input is true or false, else no change."""
+    if value == 'true': return True
+    if value == 'false': return False
+    return value

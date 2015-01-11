@@ -3,6 +3,7 @@ import os
 import shutil
 import unittest
 import platform
+from pickle import _getattribute
 
 
 if platform.system()=='Windows':
@@ -12,28 +13,31 @@ else:
     test_path = "/tmp/ClassifyDirTest"
     
 
-def createClassify(subpath,volume,protection,recurse,compress,name=''):
+def _createClassify(subpath, volume, protection, recurse, compress, name=''):
     """Create a standard .classify exclusion_file at given location"""
-
     path = test_path
     for subdir in subpath:
         path = os.path.join(path,subdir)
     exclusion_file = open(os.path.join(path,classifydir.MAGIC_FILE),"a+")
     for setting in zip(('volume','protection','recurse','compress'),(volume,protection,recurse,compress)):
         exclusion_file.write("{}={}\n".format(*setting))
-    if len(name)>0:
+    if len(name):
         exclusion_file.write("name={}\n".format(name))
     exclusion_file.close()
 
-def createFile(subpath,name,size):
+def _createFile(subpath,name,size):
     """Create a standard text exclusion_file of given size at given location"""
-
     path = test_path
     for subdir in subpath:
         path = os.path.join(path,subdir)
     exclusion_file = open(os.path.join(path,name),"a+")
     exclusion_file.write("x"*size)
     exclusion_file.close()
+        
+def _getAttributeTuple(cd):
+    """Returns a standard tuple of attributes used to verify a classdir"""
+    return (cd.volume, cd.protection, cd.compress, cd.rel_path, cd.name)
+
 
 
 
@@ -66,107 +70,92 @@ class DateBatchTestCase(unittest.TestCase):
 
     def testStructureOne (self):
         """Test all sizes, one and two levels undefined, recurse in non recurse"""
-        createClassify('abc','small','none','true','false')
-        createClassify('ad','medium','none','false','false')
-        createClassify('ade','large','none','true','false')
-        createClassify('f','huge','none','true','false')
-        createClassify('g','none','none','true','false')
+        _createClassify('abc','small','none','true','false')
+        _createClassify('ad','medium','none','false','false')
+        _createClassify('ade','large','none','true','false')
+        _createClassify('f','huge','none','true','false')
+        _createClassify('g','none','none','true','false')
 
-        createFile('ab', 'none', 500)
-        createFile('abc', 'small1', 500)
-        createFile('abc', 'small2', 500)
-        createFile('ad', 'medium', 500)
-        createFile('ade', 'large', 500)
-        createFile('f', 'huge', 500)
+        _createFile('ab', 'none', 500)
+        _createFile('abc', 'small1', 500)
+        _createFile('abc', 'small2', 500)
+        _createFile('ad', 'medium', 500)
+        _createFile('ade', 'large', 500)
+        _createFile('f', 'huge', 500)
 
-        target = [
-                  ['small', 'none', False, 'a:b:c', 'c'], 
-                  ['medium', 'none', False, 'a:d', 'd'], 
-                  ['large', 'none', False,'a:d:e', 'e'], 
-                  ['huge', 'none', False, 'f', 'f'], 
-                  ['none', 'none', False, 'g', 'g']
-                ]
-        for x in range(len(target)):
-            target[x][3] = target[x][3].replace(':',os.sep)
+        expected_dirs = [
+            ('small', 'none', False, os.path.join('a','b','c'), 'c'), 
+            ('medium', 'none', False, os.path.join('a','d'), 'd'), 
+            ('large', 'none', False, os.path.join('a','d','e'), 'e'), 
+            ('huge', 'none', False, 'f', 'f'), 
+        ]
 
-        cd = classifydir.ClassifiedDir(test_path,True)
-        result = cd.dirList()
-        print()
-        print("Target: ",target)
-        print("Result: ",result)
+        cd = classifydir.ClassifiedDir(test_path, '', fetch_info=True)
+        result_dirs = [_getAttributeTuple(child) for child in cd.descendants()
+                       if child.archiveRoot() != None]
+        #print("Target1: ", expected_dirs)
+        #print("Result1: ", result_dirs)
         
-        self.failUnlessEqual(result,target,"Structure 1 - Did not return correct list")
-
-        self.failUnless(cd.dirCount()==5,
-                        "Structure 1 - Returned wrong total directory count")
-        self.failUnless(cd.dirCount('small',None)==1,
-                        "Structure 1 - Returned wrong small directory count")
-        self.failUnless(cd.fileCount()==10,
-                        "Structure 1 - Returned wrong total exclusion_file count")
-        self.failUnless(cd.fileCount('medium',None)==2,
-                        "Structure 1 - Returned wrong medium exclusion_file count")
-        
+        self.assertEqual(result_dirs, expected_dirs, "Directory list")
+        self.assertEqual(cd.totalFileCount(), 11, "Total file count")
         # Need two different size for windows/unix classify line endings
-        self.failUnless(cd.totalSize()==2805 or cd.totalSize()==2785,
-                        "Structure 1 - Returned wrong total files size")
-        self.failUnless(cd.totalSize('large','secret')==0,
-                        "Structure 1 - Returned wrong large secret exclusion_file size")
+        self.assertIn(cd.totalSize(), (3305,  3285), "Total files size")
 
+        expected_archives = [
+            ('small', 'none', False, os.path.join('a','b','c'), 'c'), 
+            ('medium', 'none', False, os.path.join('a','d'), 'd'), 
+            ('large', 'none', False, os.path.join('a','d','e'), 'e'), 
+            ('huge', 'none', False, 'f', 'f'), 
+        ]
 
-        #Also just run the functions to verify no exceptions
-        cd.printSummary()
-        cd.printTable()
+        result_archives = [_getAttributeTuple(arc) for arc in cd.descendants(archives_only=True)]
+        self.assertEqual(result_archives, expected_archives, "Archive list")
 
 
     def testStructureTwo (self):
         """Test all protections, no levels undefined, multi level non recurse"""
-        createClassify('','none','none','false','false')
-        createClassify('a','none','restricted','false','true','named_a')
-        createClassify('ab','none','confidential','false','true')
-        createClassify('abc','none','secret','false','true')
-        createClassify('ad','none','secret','true','false')
-        createClassify('f','none','restricted','true','false','named_f')
-        createClassify('g','none','secret','true','false')
+        _createClassify('','small','none','false','false')
+        _createClassify('a','small','restricted','false','true','named_a')
+        _createClassify('ab','small','confidential','false','true')
+        _createClassify('abc','small','secret','false','true')
+        _createClassify('ad','small','secret','true','false')
+        _createClassify('f','small','restricted','true','false','named_f')
+        _createClassify('g','small','secret','true','false')
 
-        target = [
-                  ['none', 'none', False, '', ''], 
-                  ['none', 'restricted', True, 'a', 'named_a'], 
-                  ['none', 'confidential', True, 'a:b', 'b'], 
-                  ['none', 'secret', True, 'a:b:c', 'c'], 
-                  ['none', 'secret', False, 'a:d', 'd'], 
-                  #['none', 'secret', False, 'a:d:e'], 
-                  ['none', 'restricted', False, 'f', 'named_f'], 
-                  ['none', 'secret', False, 'g', 'g']
-                ]
-        for x in range(len(target)):
-            target[x][3] = target[x][3].replace(':',os.sep)
+        expected_dirs = [
+            ('small', 'none', False, '', ''), 
+            ('small', 'restricted', True, 'a', 'named_a'), 
+            ('small', 'confidential', True, os.path.join('a','b'), 'b'), 
+            ('small', 'secret', True, os.path.join('a','b','c'), 'c'), 
+            ('small', 'secret', False, os.path.join('a','d'), 'd'), 
+            ('small', 'secret', False, os.path.join('a','d','e'), 'e'), 
+            ('small', 'restricted', False, 'f', 'named_f'), 
+            ('small', 'secret', False, 'g', 'g')
+          ]
 
-        cd = classifydir.ClassifiedDir(test_path,False)
-        result = cd.dirList()
-        print()
-        print("Target: ",target)
-        print("Result: ",result)
-        
-        self.failUnlessEqual(result,target,"Structure 2 - Did not return correct list (incl names)")
+        cd = classifydir.ClassifiedDir(test_path, '', fetch_info=True)
+        result_dirs = [_getAttributeTuple(child) for child in cd.descendants()]
+        #print("Target2: ", expected_dirs)
+        #print("Result2: ", result_dirs)
+        self.assertEqual(result_dirs, expected_dirs, "Directory list")
 
-        cds = cd.classDirList(None,None)
-        self.failUnless(len(cds)==7,"Structure 2 - Return wrong number of classified directory objects")
+        expected_archives = [
+            ('small', 'none', False, '', ''), 
+            ('small', 'restricted', True, 'a', 'named_a'), 
+            ('small', 'confidential', True, os.path.join('a','b'), 'b'), 
+            ('small', 'secret', True, os.path.join('a','b','c'), 'c'), 
+            ('small', 'secret', False, os.path.join('a','d'), 'd'), 
+            ('small', 'restricted', False, 'f', 'named_f'), 
+            ('small', 'secret', False, 'g', 'g')
+          ]
 
-        self.failUnless(cds[0].preferredMechanism()=='zip',"Structure 2 - Returned wrong mechanism for zip directory 1")
-        self.failUnless(cds[1].preferredMechanism()=='zip',"Structure 2 - Returned wrong mechanism for zip directory 2")
-        self.failUnless(cds[4].preferredMechanism()=='jxx',"Structure 2 - Returned wrong mechanism for jxx directory")
-        self.failUnless(cds[5].preferredMechanism()=='copy',"Structure 2 - Returned wrong mechanism for copy directory")
-        
-        
-        #Also just run some functions to verify no exceptions
-        cd.printSummary()
-        cd.printTable()
-
+        result_archives = [_getAttributeTuple(arc) for arc in cd.descendantRoots()]
+        self.assertEqual(result_archives, expected_archives, "Archive list")
 
 
     def testStructureThree (self):
         """Test not specifying underneath non-recursive is failure"""
-        createClassify('a','small','restricted','false','false')
+        _createClassify('a','small','restricted','false','false')
 
         with self.assertRaises(Exception):
             classifydir.ClassifiedDir(test_path,True)
@@ -174,14 +163,14 @@ class DateBatchTestCase(unittest.TestCase):
 
     def testStructureFour (self):
         """Test specifying underneath recursive is failure"""
-        createClassify('a','small','restricted','true','false')
-        createClassify('abc','medium','restricted','true','false')
+        _createClassify('a','small','restricted','true','false')
+        _createClassify('abc','medium','restricted','true','false')
 
         with self.assertRaises(Exception):
             classifydir.ClassifiedDir(test_path,True)
 
 
-    def testClassifyComment (self):
+    def testClassify_validComment(self):
         """Test comments work in .classify"""        
         exclusion_file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
         exclusion_file.write("# Single line comment\n")
@@ -189,59 +178,58 @@ class DateBatchTestCase(unittest.TestCase):
         exclusion_file.write("volume=small #Line comment\nprotection=none\nrecurse=true\ncompress=true\n")
         exclusion_file.close()
 
-        classifydir.ClassifiedDir(test_path,True)
+        classifydir.ClassifiedDir(test_path, '', fetch_info=False)
 
 
-    def testBadClassifyOne (self):
+    def testClassify_missingParameter(self):
         """Test missing parameter in .classify"""        
         exclusion_file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
         exclusion_file.write("protection=none\nrecurse=true\ncompress=false\n")
         exclusion_file.close()
 
         with self.assertRaises(Exception):
-            classifydir.ClassifiedDir(test_path)
+            classifydir.ClassifiedDir(test_path, '', fetch_info=False)
  
 
-    def testBadClassifyTwo (self):
+    def testClassify_duplicateParameter(self):
         """Test duplicate parameter in .classify"""        
-        exclusion_file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
+        exclusion_file = open(os.path.join(test_path, classifydir.MAGIC_FILE),"a+")
         exclusion_file.write("volume=none\nprotection=none\nvolume=small\nrecurse=true\ncompress=true\n")
         exclusion_file.close()
 
         with self.assertRaises(Exception):
-            classifydir.ClassifiedDir(test_path)
+            classifydir.ClassifiedDir(test_path, '', fetch_info=False)
 
 
-    def testBadClassifyThree (self):
+    def testClassify_unknownSetting(self):
         """Test bad setting in .classify"""        
-        exclusion_file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
+        exclusion_file = open(os.path.join(test_path, classifydir.MAGIC_FILE),"a+")
         exclusion_file.write("vollume=none\nprotection=none\nrecurse=true\ncompress=false\n")
         exclusion_file.close()
 
         with self.assertRaises(Exception):
-            classifydir.ClassifiedDir(test_path)
+            classifydir.ClassifiedDir(test_path, '', fetch_info=False)
 
 
-    def testBadClassifyFour (self):
+    def testClassify_illegalSettingValue(self):
         """Test bad value in .classify"""        
         exclusion_file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
         exclusion_file.write("volume=moderate\nprotection=none\nrecurse=true\ncompress=false\n")
         exclusion_file.close()
 
         with self.assertRaises(Exception):
-            classifydir.ClassifiedDir(test_path)
+            classifydir.ClassifiedDir(test_path, '', fetch_info=True)
 
 
-    def testBadClassifyFive (self):
+    def testClassify_malformedLine(self):
         """Test malformed line in .classify"""        
         exclusion_file = open(os.path.join(test_path,classifydir.MAGIC_FILE),"a+")
         exclusion_file.write("volume=\nprotection=none\nrecurse=true\ncompress=true\n")
         exclusion_file.close()
 
         with self.assertRaises(Exception):
-            classifydir.ClassifiedDir(test_path)
+            classifydir.ClassifiedDir(test_path, '', fetch_info=False)
 
-        
 
 if __name__ == "__main__": 
     
@@ -249,7 +237,6 @@ if __name__ == "__main__":
     # tests by just entering "test" 
     ldr = unittest.TestLoader()
     
-    #ldr.testMethodPrefix = "testStructureOne"
     ldr.testMethodPrefix = "test"
     
     suite = ldr.loadTestsFromTestCase(DateBatchTestCase)
