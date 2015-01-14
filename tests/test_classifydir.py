@@ -3,7 +3,6 @@ import os
 import shutil
 import unittest
 import platform
-from pickle import _getattribute
 
 
 if platform.system()=='Windows':
@@ -90,7 +89,7 @@ class DateBatchTestCase(unittest.TestCase):
             ('huge', 'none', False, 'f', 'f'), 
         ]
 
-        cd = classifydir.ClassifiedDir(test_path, '', fetch_info=True)
+        cd = classifydir.ClassifiedDir(test_path, fetch_info=True, rel_path='')
         result_dirs = [_getAttributeTuple(child) for child in cd.descendants()
                        if child.archiveRoot() != None]
         #print("Target1: ", expected_dirs)
@@ -133,7 +132,7 @@ class DateBatchTestCase(unittest.TestCase):
             ('small', 'secret', False, 'g', 'g')
           ]
 
-        cd = classifydir.ClassifiedDir(test_path, '', fetch_info=True)
+        cd = classifydir.ClassifiedDir(test_path, fetch_info=True, rel_path='')
         result_dirs = [_getAttributeTuple(child) for child in cd.descendants()]
         #print("Target2: ", expected_dirs)
         #print("Result2: ", result_dirs)
@@ -158,7 +157,7 @@ class DateBatchTestCase(unittest.TestCase):
         _createClassify('a','small','restricted','false','false')
 
         with self.assertRaises(Exception):
-            classifydir.ClassifiedDir(test_path,True)
+            classifydir.ClassifiedDir(test_path, fetch_info=True, rel_path='')
 
 
     def testStructureFour (self):
@@ -167,7 +166,7 @@ class DateBatchTestCase(unittest.TestCase):
         _createClassify('abc','medium','restricted','true','false')
 
         with self.assertRaises(Exception):
-            classifydir.ClassifiedDir(test_path,True)
+            classifydir.ClassifiedDir(test_path, fetch_info=True, rel_path='')
 
 
     def testClassify_validComment(self):
@@ -178,7 +177,7 @@ class DateBatchTestCase(unittest.TestCase):
         exclusion_file.write("volume=small #Line comment\nprotection=none\nrecurse=true\ncompress=true\n")
         exclusion_file.close()
 
-        classifydir.ClassifiedDir(test_path, '', fetch_info=False)
+        classifydir.ClassifiedDir(test_path, fetch_info=False, rel_path='')
 
 
     def testClassify_missingParameter(self):
@@ -188,7 +187,7 @@ class DateBatchTestCase(unittest.TestCase):
         exclusion_file.close()
 
         with self.assertRaises(Exception):
-            classifydir.ClassifiedDir(test_path, '', fetch_info=False)
+            classifydir.ClassifiedDir(test_path, fetch_info=False, rel_path='')
  
 
     def testClassify_duplicateParameter(self):
@@ -198,7 +197,7 @@ class DateBatchTestCase(unittest.TestCase):
         exclusion_file.close()
 
         with self.assertRaises(Exception):
-            classifydir.ClassifiedDir(test_path, '', fetch_info=False)
+            classifydir.ClassifiedDir(test_path, fetch_info=False, rel_path='')
 
 
     def testClassify_unknownSetting(self):
@@ -208,7 +207,7 @@ class DateBatchTestCase(unittest.TestCase):
         exclusion_file.close()
 
         with self.assertRaises(Exception):
-            classifydir.ClassifiedDir(test_path, '', fetch_info=False)
+            classifydir.ClassifiedDir(test_path, fetch_info=False, rel_path='')
 
 
     def testClassify_illegalSettingValue(self):
@@ -218,7 +217,7 @@ class DateBatchTestCase(unittest.TestCase):
         exclusion_file.close()
 
         with self.assertRaises(Exception):
-            classifydir.ClassifiedDir(test_path, '', fetch_info=True)
+            classifydir.ClassifiedDir(test_path, fetch_info=True, rel_path='')
 
 
     def testClassify_malformedLine(self):
@@ -228,7 +227,7 @@ class DateBatchTestCase(unittest.TestCase):
         exclusion_file.close()
 
         with self.assertRaises(Exception):
-            classifydir.ClassifiedDir(test_path, '', fetch_info=False)
+            classifydir.ClassifiedDir(test_path, fetch_info=False, rel_path='')
 
 
 if __name__ == "__main__": 

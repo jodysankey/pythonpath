@@ -60,12 +60,17 @@ class ClassifiedDir(object):
     """A class to store and report the classification of a single
     directory, as declared by magic .classify files."""
 
+    def __init__(self, base_path, fetch_info, max_recursion_depth=999, rel_path=None, parent=None):
+        """initialize a new ClassifiedDir object"""
+        if rel_path is None:
+            self.full_path = os.path.abspath(base_path)
+            base_path, self.rel_path = os.path.split(self.full_path)
+            self.base_name = self.rel_path
+        else:
+            self.full_path = os.path.join(base_path, rel_path)
+            self.rel_path = rel_path
+            self.base_name = os.path.basename(rel_path)
 
-    def __init__(self, base_path, rel_path, fetch_info, max_recursion_depth=999, parent=None):
-        """initialize all attributes"""
-        self.base_name = os.path.basename(rel_path)
-        self.rel_path = rel_path
-        self.full_path = os.path.join(base_path, rel_path)
         self.parent = parent
         self.depth = parent.depth + 1 if parent else 0
         self.recursion_depth = 0
@@ -73,7 +78,7 @@ class ClassifiedDir(object):
         self.children = []
         self.size = 0 if fetch_info else None
         self.file_count = 0 if fetch_info else None
-
+        
         # detect and read the magic file if appropriate
         config_file = os.path.join(self.full_path, MAGIC_FILE)
         if os.path.isfile(config_file):
@@ -200,7 +205,7 @@ class ClassifiedDir(object):
         dirs, files = next(os.walk(self.full_path, topdown=True, followlinks=False))[1:]
         for entry in sorted(dirs):
             child_path = os.path.join(self.rel_path, entry) 
-            child = ClassifiedDir(base_path, child_path, fetch_info, max_recursion_depth, self)
+            child = ClassifiedDir(base_path, fetch_info, max_recursion_depth, child_path, self)
             self.children.append(child)
         if fetch_info:
             self.last_change = 0
