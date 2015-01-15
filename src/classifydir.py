@@ -82,9 +82,6 @@ class ClassifiedDir(object):
         # detect and read the magic file if appropriate
         config_file = os.path.join(self.full_path, MAGIC_FILE)
         if os.path.isfile(config_file):
-            if parent and parent.__status != 'undefined' and parent.recurse:
-                raise Exception("classification file " + config_file +
-                                " inside recursively classified directory")
             self.__status = 'explicit'
             self.__readConfigurationFile(config_file)
             self.__propogateDeepestExplicit()
