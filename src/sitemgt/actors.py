@@ -20,6 +20,8 @@ import tagwriter
 import xml.etree.ElementTree
 import os
 
+from xml.sax.saxutils import escape
+
 from .paths import getDeploymentFile, getStatusReportFile
 from .functionality import ActorRequirement
 from .general import SiteObject, Health, FAIL, DEGD, FAULT, UNKNOWN, OFF, GOOD
@@ -153,9 +155,9 @@ class Host(Actor):
         installed_packages = [_splitAptitudeLine(ln) for ln in raw_installed.split('\n')]
         self.unexpected_packages = []
     
-        for tuple in installed_packages:
-            if tuple[0] in orphaned_packages and tuple[0] not in expected_packages:
-                self.unexpected_packages.append(tuple)
+        for tupl in installed_packages:
+            if tupl[0] in orphaned_packages and tupl[0] not in expected_packages:
+                self.unexpected_packages.append(tupl)
 
         # Build a set of upgradable packages 
         raw_upgradable = subprocess.check_output(['aptitude','search','~U']).decode('utf-8')
@@ -201,9 +203,9 @@ class Host(Actor):
         for depl in self.expected_deployments.values():
             depl.saveStatus(tag_writer)            
         for pkg in self.upgradable_packages:
-            tag_writer.write('Upgradable','name="{}" description="{}"'.format(pkg[0],pkg[1]))
+            tag_writer.write('Upgradable','name="{}" description="{}"'.format(pkg[0], escape(pkg[1])))
         for pkg in self.unexpected_packages:
-            tag_writer.write('Unexpected','name="{}" description="{}"'.format(pkg[0],pkg[1]))
+            tag_writer.write('Unexpected','name="{}" description="{}"'.format(pkg[0], escape(pkg[1])))
 
         tag_writer.close(2)
         
@@ -211,18 +213,23 @@ class Host(Actor):
         """Load the component deployment status from the standard file, using an XML ElementTree"""
         self.resetDeploymentStatus()
         
-        # Find root element and check it is for the correct host
-        book = xml.etree.ElementTree.parse(getDeploymentFile(self.name)).getroot()
-        x_host = book.find('Host')
-        if x_host.get('name') == self.name:
-            self.status_date = datetime.datetime.strptime(x_host.get('date'), "%Y-%m-%d %H:%M")
-            
-            for x_d in x_host.findall('Deployment'):
-                if x_d.get('name') in self.expected_deployments.keys():
-                    self.expected_deployments[x_d.get('name')].loadStatus(x_d)
-
-            self.upgradable_packages = [(p.get('name'),p.get('description')) for p in x_host.findall('Upgradable')]
-            self.unexpected_packages = [(p.get('name'),p.get('description')) for p in x_host.findall('Unexpected')]
+        # Find root element and check it is for the correct host. Throw but don't crash if the XML
+        # is malformed because we've had errors from some of the many hosts in the past.
+        status_file = getDeploymentFile(self.name)
+        try:
+            book = xml.etree.ElementTree.parse(status_file).getroot()
+            x_host = book.find('Host')
+            if x_host.get('name') == self.name:
+                self.status_date = datetime.datetime.strptime(x_host.get('date'), "%Y-%m-%d %H:%M")
+                
+                for x_d in x_host.findall('Deployment'):
+                    if x_d.get('name') in self.expected_deployments.keys():
+                        self.expected_deployments[x_d.get('name')].loadStatus(x_d)
+    
+                self.upgradable_packages = [(p.get('name'),p.get('description')) for p in x_host.findall('Upgradable')]
+                self.unexpected_packages = [(p.get('name'),p.get('description')) for p in x_host.findall('Unexpected')]
+        except xml.etree.ElementTree.ParseError as e:
+            print("Error parsing status file {}: {}".format(status_file, e))
  
  
     def _setHealthAndStatus(self):
