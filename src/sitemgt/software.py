@@ -61,12 +61,12 @@ class Component(SiteObject):
         for rel_name in sorted(self.relations.keys()):
             self.relations[rel_name] = siteDescription.components[rel_name]
 
-    def _crossLink(self, siteDescription):
+    def _crossLink(self, site_description):
         """Initialize references to other non-component objects"""
         # Ask the associated host_set to record each of the deployments we have a location for.
         # It will handle decomposing to all hosts in a group if necessary 
         for tgt in self._deployment_targets.keys():
-            siteDescription.actors[tgt]._deployComponent(self,self._deployment_targets[tgt])
+            site_description.actors[tgt]._deployComponent(self,self._deployment_targets[tgt])
 
     def _registerDependency(self, depended_component):
         """Adds a bidirectionaly dependency link from self to depended_component"""

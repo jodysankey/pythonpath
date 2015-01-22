@@ -78,18 +78,22 @@ class SystemRequirement(SiteObject):
             self.actor_requirement_dict[x_ar.get('uid')] = None
             self.actor_requirement_list.append(x_ar.get('uid'))
 
-    def _crossLink(self, siteDescription):
+    def _crossLink(self, site_description):
         """Initialize references to other objects within the site description"""
         for idx in range(len(self.actor_requirement_list)):
-            ar = siteDescription.actor_requirement_dict[self.actor_requirement_list[idx]]
+            ar = site_description.actor_requirement_dict[self.actor_requirement_list[idx]]
             self.actor_requirement_dict[ar.uid] = ar
             self.actor_requirement_list[idx] = ar
             ar.system_requirements[self.uid] = self
-
-#        for ar_uid in sorted(self.actor_requirement_dict.keys()):
-#            ar = siteDescription.actor_requirement_dict[ar_uid]
-#            self.actor_requirement_dict[ar_uid] = ar
-#            ar.system_requirements[self.uid] = self
+        for idx in range(len(self.automatic_checks)):
+            my_check = self.automatic_checks[idx]
+            if my_check.name in site_description.automatic_checks:
+                global_check = site_description.automatic_checks[my_check.name]
+                global_check.requirements[self.uid] = self
+                self.automatic_checks[idx] = global_check
+            else:
+                site_description.automatic_checks[my_check.name] = my_check
+        
 
     def hostSets(self):
         """Return an set of supporting hosts and host groups"""
@@ -173,31 +177,38 @@ class AutomaticCheck(SiteObject):
     """An automatic test to determine whether a system capability is being met"""
     # No children to expand
     def __init__(self, x_element, system_requirement):
-        SiteObject.__init__(self,x_element,'automaticcheck')
+        SiteObject.__init__(self, x_element, 'automaticcheck')
         self.name = self.logfile
-        self.system_requirement = system_requirement
+        self.requirements = {system_requirement.uid: system_requirement}
         if not hasattr(self,"maxStalenessDays"):
             self.maxStalenessDays = 2
-        self.recheckResult()
+        self.recheckOutcomes()
 
     def _qualifiedFileName(self):
         """Gets the log file name"""
         return os.path.join(CHECK_RESULTS_DIR, self.logfile)
 
-    def recheckResult(self):
+    def recheckOutcomes(self):
         """Sets the last_result field based on the current check file."""
-        # Clear previous outcome, assume failure until success is acheived
-        self.last_result = None
+        self.outcomes = None
+        self.last_run = ''
         self.stale = True
         if not os.path.exists(self._qualifiedFileName()):
-            self.result_error = "File not found"
+            self.outcome_error = "File not found"
         else:
-            result_line = _readLastLineFromFile(self._qualifiedFileName())
             try:
-                self.last_result = CheckOutcome.createFromFileString(result_line)
-                self.stale = self.last_result.isStale(self.maxStalenessDays)
+                with open(self._qualifiedFileName(), 'r') as fh:
+                    self.outcomes = [CheckOutcome.createFromFileString(line)
+                                    for line in fh if not line.startswith('#')]
+                if self.outcomes:
+                    self.last_run = self.outcomes[-1].timestamp
+                    self.stale = self.outcomes[-1].isStale(self.maxStalenessDays)
             except ValueError as ex:
-                self.result_error = str(ex)
+                self.outcome_error = str(ex)
+    
+    def lastOutcome(self):
+        """Returns the most recent outcome if one exists, or None otherwise"""
+        return self.outcomes[-1] if self.outcomes else None
 
     def _setHealthAndStatus(self):
         """Determines health of the check based on the staleness and pass/fail.
@@ -205,7 +216,7 @@ class AutomaticCheck(SiteObject):
         if self.stale:
             self._health = DEGD
             self._status = "Stale"
-        elif self.last_result.success:
+        elif self.lastOutcome() and self.lastOutcome().success:
             self._health = GOOD
             self._status = "Passed"
         else:

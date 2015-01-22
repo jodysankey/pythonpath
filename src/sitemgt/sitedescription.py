@@ -101,8 +101,9 @@ class SiteDescription(object):
         self.other_files =  makeObjectDictionary(OtherFile,x_components.findall('OtherFile'))
         self.components =   mergeDictionaries([self.applications, self.scripts, self.config_files, self.other_files])
 
-        # Create then link capabilities
-        self.capabilities = makeObjectList(Capability,x_func.findall('Capability'))
+        # Create then link capabilities, they de-duplicate checks during crosslink.
+        self.capabilities = makeObjectList(Capability, x_func.findall('Capability'))
+        self.automatic_checks = dict()
         for cap in self.capabilities:
             cap._crossLink(self)
 

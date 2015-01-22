@@ -23,13 +23,13 @@ class TagWriter(object):
     def __del__(self):
         self.__f.close()
         
-    def write(self,tag,attributes='',text=''): 
+    def write(self, tag, attributes='', text=''): 
         self.__f.write("<{}".format(tag))
         if attributes != '':
             self.__f.write(" {}".format(attributes))
         self.__f.write(">{}</{}>\n".format(text,tag))
          
-    def writeOrphan(self,tag,attributes): 
+    def writeOrphan(self, tag, attributes): 
         self.__f.write("<{} {}>\n".format(tag, attributes))
     
     def writeText(self,text): 

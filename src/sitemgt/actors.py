@@ -71,11 +71,11 @@ class Actor(SiteObject):
                 self.members[member_name] = member
                 member.groups[self.name] = self
         
-    def _crossLink(self, siteDescription):
+    def _crossLink(self, site_description):
         """Initialize references to other non-actor objects"""
         # Ask requirements to link their components, and deploy these requirements
         for req in self.requirements.values():
-            req._crossLink(siteDescription)
+            req._crossLink(site_description)
             self._deployRequirement(req)
 
     def isHostSet(self):
