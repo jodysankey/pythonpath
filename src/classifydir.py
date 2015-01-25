@@ -199,7 +199,10 @@ class ClassifiedDir(object):
 
     def __readContents(self, base_path, fetch_info, max_recursion_depth):
         """"Adds child objects and optionally sizes based on directories inside our own"""
-        dirs, files = next(os.walk(self.full_path, topdown=True, followlinks=False))[1:]
+        try:
+            dirs, files = next(os.walk(self.full_path, topdown=True, followlinks=False))[1:]
+        except StopIteration:
+            return
         for entry in sorted(dirs):
             child_path = os.path.join(self.rel_path, entry) 
             child = ClassifiedDir(base_path, fetch_info, max_recursion_depth, child_path, self)
