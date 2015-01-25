@@ -78,8 +78,8 @@ class ClassifiedDir(object):
         self.children = []
         self.size = 0 if fetch_info else None
         self.file_count = 0 if fetch_info else None
-        self.last_change = b'' if fetch_info else None
-        self.content_hash = 0 if fetch_info else None
+        self.last_change = 0 if fetch_info else None
+        self.content_hash = b'' if fetch_info else None
         
         # detect and read the magic file if appropriate
         config_file = os.path.join(self.full_path, MAGIC_FILE)
