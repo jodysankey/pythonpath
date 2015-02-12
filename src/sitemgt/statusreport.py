@@ -57,6 +57,25 @@ def formatTimeError(value):
     try:                return "{:+d} seconds".format(int(value))
     except ValueError:  return value
 
+def getFirstPrinterName():
+    return getSecondWordOfFirstLine(['lpstat', '-p'], 'printer')
+
+def getFirstScannerName():
+    return getSecondWordOfFirstLine(['scanimage', '-L'], 'device')
+
+def getSecondWordOfFirstLine(command, sentinal_word):
+    try:
+        lines = subprocess.check_output(command).decode("utf-8").split("\n")
+    except Exception:
+        return 'ERR'
+    if len(lines) > 0:
+        words = lines[0].split()
+        if len(words) > 2 and words[0] == sentinal_word:
+            return words[1].strip("'`")
+    return 'ERR'
+
+
+
 # Define an ordered list of the fields we will define, including pointers to the
 # functions used to calculate and optionally format them
 
@@ -67,6 +86,8 @@ _STANDARD_FIELDS = [
     {'name':'ip_v6_count', 'header':None, 'formatFn':None, 'calcFn':getIpV6AddressCount},
     {'name':'kernel', 'header':'Kernel ', 'formatFn':None, 'calcFn':getKernelVersion},
     {'name':'time_error', 'header':'Time Error', 'formatFn':formatTimeError, 'calcFn':getTimeError},
+    {'name':'printer_name', 'header':'Printer', 'formatFn':None, 'calcFn':getFirstPrinterName()},
+    {'name':'scanner_name', 'header':'Scanner', 'formatFn':None, 'calcFn':getFirstScannerName()},
                    ]
 
 _PREFIX_FIELDS = [ 
