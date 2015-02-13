@@ -15,7 +15,7 @@ from datetime import datetime
 from xml.etree.ElementTree import ElementTree, Element, parse
 
 import time_error
-from .general import initializeObjectFromXmlElement, initializeXmlElementFromObject
+from sitemgt.general import initializeObjectFromXmlElement, initializeXmlElementFromObject
 
 _ELEMENT_NAME = "Report"
 _ROOT_NAME = "StatusReports"

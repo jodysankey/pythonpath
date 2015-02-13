@@ -24,9 +24,14 @@ SECONDS_IN_HOUR = 3600
 
 
 def getWebSecondsPastMidx():
-    text = request.urlopen(URL).read().decode("UTF-8")
+    try:
+        text = request.urlopen(URL).read().decode("UTF-8")
+    except Exception as e:
+        print('Exception reading web time', e)
+        return None
     match = re.search(REGEX, text)
-    if not match: return None
+    if not match:
+        return None
     # Convert to a number of seconds past midnight/midday (because not 24h web clock <sigh>)
     val = 0
     for i in range(0,3):
