@@ -39,7 +39,7 @@ def dateDifferenceSeconds(t1, t2):
     if t1 is None or t2 is None:
         return None
     else:
-        return (t2 - t1).total_seconds()
+        return int((t2 - t1).total_seconds())
 
 def getTimesAndDifference():
     local = getLocalTime()
