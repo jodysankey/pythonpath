@@ -14,55 +14,40 @@
 #========================================================
 
 from urllib import request
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 import sys
 
-URL = r"http://time.is/GMT"
-REGEX = r'<div id=\"twd\">(\d\d):(\d\d):(\d\d)'
+URL = r"https://www.google.com"
+TIME_FMT = r'%a, %d %b %Y %H:%M:%S GMT'
 SECONDS_IN_HOUR = 3600
 
 
-def getWebSecondsPastMidx():
+def getWebTime():
     try:
-        text = request.urlopen(URL).read().decode("UTF-8")
+        date_header = request.urlopen(URL).getheader('date')
+        return datetime.strptime(date_header, TIME_FMT)
     except Exception as e:
-        print('Exception reading web time', e)
+        print('Exception reading web time from header ', date_header, e)
         return None
-    match = re.search(REGEX, text)
-    if not match:
-        return None
-    # Convert to a number of seconds past midnight/midday (because not 24h web clock <sigh>)
-    val = 0
-    for i in range(0,3):
-        val = val*60 + int(match.groups()[i])
-    return  val % (12 * SECONDS_IN_HOUR)
 
-def getLocalSecondsPastMidx():
-    t = datetime.utcnow()
-    val = (t.hour*60 + t.minute)*60 + t.second
-    return  val % (12 * SECONDS_IN_HOUR)
+def getLocalTime():
+    return datetime.utcnow()
 
-def normalizedDifference(t1, t2):
-    """Returns a difference between two times, accounting for the fact
-    that either may have just rolled past a midday/midnight"""
+def dateDifferenceSeconds(t1, t2):
+    """Returns a difference between two python dates in seconds"""
     if t1 is None or t2 is None:
-        delta = None
+        return None
     else:
-        delta = t2 - t1
-        if delta > 6*SECONDS_IN_HOUR:
-            delta -= 12*SECONDS_IN_HOUR
-        elif delta < -6*SECONDS_IN_HOUR:
-            delta -= 12*SECONDS_IN_HOUR
-    return delta
+        return (t2 - t1).total_seconds()
 
 def getTimesAndDifference():
-    local = getLocalSecondsPastMidx()
-    web = getWebSecondsPastMidx()
+    local = getLocalTime()
+    web = getWebTime()
     return {
-        'web': web,
-        'local': local,
-        'difference': normalizedDifference(web, local)
+        'web': web.isoformat() if web else None,
+        'local': local.isoformat() if local else None,
+        'difference': dateDifferenceSeconds(web, local)
     }
 
 
