@@ -86,8 +86,8 @@ _STANDARD_FIELDS = [
     {'name':'ip_v6_count', 'header':None, 'formatFn':None, 'calcFn':getIpV6AddressCount},
     {'name':'kernel', 'header':'Kernel ', 'formatFn':None, 'calcFn':getKernelVersion},
     {'name':'time_error', 'header':'Time Error', 'formatFn':formatTimeError, 'calcFn':getTimeError},
-    {'name':'printer_name', 'header':'Printer', 'formatFn':None, 'calcFn':getFirstPrinterName()},
-    {'name':'scanner_name', 'header':'Scanner', 'formatFn':None, 'calcFn':getFirstScannerName()},
+    {'name':'printer_name', 'header':'Printer', 'formatFn':None, 'calcFn':getFirstPrinterName},
+    {'name':'scanner_name', 'header':'Scanner', 'formatFn':None, 'calcFn':getFirstScannerName},
                    ]
 
 _PREFIX_FIELDS = [ 
