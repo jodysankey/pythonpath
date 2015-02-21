@@ -60,9 +60,6 @@ def formatTimeError(value):
 def getFirstPrinterName():
     return getSecondWordOfFirstLine(['lpstat', '-p'], 'printer')
 
-def getFirstScannerName():
-    return getSecondWordOfFirstLine(['scanimage', '-L'], 'device')
-
 def getSecondWordOfFirstLine(command, sentinal_word):
     try:
         lines = subprocess.check_output(command).decode("utf-8").split("\n")
@@ -87,7 +84,6 @@ _STANDARD_FIELDS = [
     {'name':'kernel', 'header':'Kernel ', 'formatFn':None, 'calcFn':getKernelVersion},
     {'name':'time_error', 'header':'Time Error', 'formatFn':formatTimeError, 'calcFn':getTimeError},
     {'name':'printer_name', 'header':'Printer', 'formatFn':None, 'calcFn':getFirstPrinterName},
-    {'name':'scanner_name', 'header':'Scanner', 'formatFn':None, 'calcFn':getFirstScannerName},
                    ]
 
 _PREFIX_FIELDS = [ 
@@ -141,10 +137,13 @@ class HostStatusReport(object):
                 self.att_map[f['name']] = f
         # All remaining attributes should match exactly one of the prefix fields
         for a in [a for a in self.__dict__ if (a not in self.att_map and a not in _EXCLUDED_ATTRIBUTES)]:
-            matching_pf = [pf for pf in _PREFIX_FIELDS if a.startsWith(pf['prefix'])]
-            if len(matching_pf) != 1:
+            matching_pf = [pf for pf in _PREFIX_FIELDS if a.startswith(pf['prefix'])]
+            if len(matching_pf) == 0:
+                print("Discarding unknown attribute " + a)
+            elif len(matching_pf) > 1:
                 raise Exception("Found {} matching prefixes for attribute {}".format(len(matching_pf), a))
-            self.att_map[a] = matching_pf[0]
+            else:
+                self.att_map[a] = matching_pf[0]
         
     def writeToXmlElement(self):
         """Return a new xml element based on the current report state"""

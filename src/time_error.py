@@ -1,11 +1,11 @@
 #!/usr/bin/python3
 #========================================================
 # Python script to measure the difference between local
-# time and a web time reference (acquired by screen 
-# scraping) and report the error in seconds, where 
+# time and a web time reference (acquired by reading an 
+# HTTP header) and report the error in seconds, where 
 # positive means the local clock is fast
 #========================================================
-# Copyright Jody M Sankey 2014
+# Copyright Jody M Sankey 2014-2015
 #========================================================
 # AppliesTo: linux
 # AppliesTo: client, server
@@ -14,8 +14,7 @@
 #========================================================
 
 from urllib import request
-from datetime import datetime, timedelta
-import re
+from datetime import datetime 
 import sys
 
 URL = r"https://www.google.com"
