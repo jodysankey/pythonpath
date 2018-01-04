@@ -28,7 +28,6 @@ def getStatusReportFile(host_name):
     """Return the qualified path name of the deployment record for the specified host"""
     return os.path.join(SITE_BASE_DIR, "status/{}_status_report.xml".format(host_name))
 
-
 # Note these two functions are pretty fragile. Cannot afford to have multiple scripts that 
 # using them in parallel, errors will be thrown up to the caller, and we rely on the environment 
 # variable being mounted directly. All that said the effect of failure is pretty benign.

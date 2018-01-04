@@ -29,16 +29,19 @@ from .deployment import Deployment
 from .statusreport import HostStatusReport
 
 _MAX_STATUS_REPORTS = 100
- 
-def _splitAptitudeLine(line):
-    """Splits an aptitude output line into its package name and package description"""
-    pos = line.find('- ')
-    return [line[4:pos].strip(),line[pos+2:].strip().replace('"','')]
+
+
+def _aptitudeSearchList(search):
+    """Returns a list of package name,description tuples for the specified aptitude search"""
+    args = ['aptitude', '--disable-columns', '--display-format', '%p %d', 'search', search]
+    # Allow a none zero return code if nothing matches the search
+    raw = subprocess.run(args, stdout=subprocess.PIPE).stdout.decode('utf-8')[:-1]
+    return [line.split(maxsplit=1) for line in raw.split('\n')]
 
 
 class Actor(SiteObject):
     """A high level site capability"""
-    
+
     _expand_dicts = [['members', 'groups', 'responsibility_dict', 'requirement_dict', 'expected_deployments']]
     _expand_objects = []
 
@@ -46,7 +49,7 @@ class Actor(SiteObject):
         """Initialize the object"""        
         # Set basic attributes
         SiteObject.__init__(self, x_definition, typename)
-        
+
         # Mark dictionaries with blanks until link attaches them
         self.responsibilities = {}
         if is_group:
@@ -55,7 +58,7 @@ class Actor(SiteObject):
                 self.members[x_m.get('name')] = None
         else:
             self.groups = {}
-            
+
         self.requirements = {}
         if x_functionality is not None:
             for x_req in x_functionality.findall('*'):
@@ -70,7 +73,7 @@ class Actor(SiteObject):
                 member = siteDescription.actors[member_name]
                 self.members[member_name] = member
                 member.groups[self.name] = self
-        
+
     def _crossLink(self, site_description):
         """Initialize references to other non-actor objects"""
         # Ask requirements to link their components, and deploy these requirements
@@ -85,7 +88,7 @@ class Actor(SiteObject):
     def isGroup(self):
         """Returns true if this actor is a group or users or hosts"""
         return hasattr(self,'members')
-        
+
     def _deployRequirement(self, requirement):
         """Document the deployment of all components needed by a requirement"""
         # More specific types of actor can override this with their own values
@@ -95,9 +98,7 @@ class Actor(SiteObject):
         """Unless overridden the actor health is unmonitored"""
         self._health = OFF
 
-    
-    
-   
+
 class Host(Actor):
     """A computer within the site"""
 
@@ -124,7 +125,7 @@ class Host(Actor):
         for component in requirement.primary_components.values():
             # Any component directly related to a requirement is primary
             self._deployRequiredComponent(component, requirement, True)
-    
+
     def _deployComponent(self, component, location):
         """Document the deployment of a component to a location"""
         if component.name in self.expected_deployments.keys():
@@ -133,17 +134,16 @@ class Host(Actor):
         else:
             # Must create a new deployment (it will link itself to us)
             Deployment(self, component, location)
-    
 
     def gatherDeploymentStatus(self, cm_working_root):
         """Determine the current state of all deployments on this host"""
-        #This function only works if we *ARE* the host
+        # This function only works if we *ARE* the host
         if self.name.lower() != socket.gethostname().lower():
             raise Exception("Can only gather deployments for current host ({}), not {}".format(socket.gethostname(), self.name))
-        
+
         self.resetDeploymentStatus();
-        
-        #Build a list unexpected packages (i.e. installed, orphan, but not expected)
+
+        # Build a list unexpected packages (i.e. installed, orphan, but not expected)
         expected_packages = []
         for package_set in [depl.component.package for depl in self.expected_deployments.values() if hasattr(depl.component,'package')]:
             expected_packages.extend(package_set)
@@ -151,18 +151,16 @@ class Host(Actor):
         raw_orphaned = subprocess.check_output(['debfoster','-ns']).decode('utf-8')
         orphaned_packages = raw_orphaned[raw_orphaned.find('\n')+1:].split()
         orphaned_packages = [p for p in orphaned_packages if not p.startswith('linux-headers-') and not p.startswith('linux-image-')]        
-        raw_installed = subprocess.check_output(['aptitude','search','~i']).decode('utf-8')[:-1]
-        installed_packages = [_splitAptitudeLine(ln) for ln in raw_installed.split('\n')]
+
+        installed_packages = _aptitudeSearchList('~i')
+
         self.unexpected_packages = []
-    
         for tupl in installed_packages:
             if tupl[0] in orphaned_packages and tupl[0] not in expected_packages:
                 self.unexpected_packages.append(tupl)
 
-        # Build a set of upgradable packages 
-        raw_upgradable = subprocess.check_output(['aptitude','search','~U']).decode('utf-8')
-        self.upgradable_packages = [_splitAptitudeLine(ln) for ln in raw_upgradable.split('\n')[:-1]]
-     
+        self.upgradable_packages = _aptitudeSearchList('~U')
+
         #Ask each expected deployment to deal with itself, providing the installed_set for speed
         for depl in self.expected_deployments.values():
             depl.gatherStatus(installed_packages, cm_working_root)
@@ -208,11 +206,11 @@ class Host(Actor):
             tag_writer.write('Unexpected','name="{}" description="{}"'.format(pkg[0], escape(pkg[1])))
 
         tag_writer.close(2)
-        
+
     def loadDeploymentStatusFromXmlFile(self):      
         """Load the component deployment status from the standard file, using an XML ElementTree"""
         self.resetDeploymentStatus()
-        
+
         # Find root element and check it is for the correct host. Throw but don't crash if the XML
         # is malformed because we've had errors from some of the many hosts in the past.
         status_file = getDeploymentFile(self.name)
@@ -221,17 +219,16 @@ class Host(Actor):
             x_host = book.find('Host')
             if x_host.get('name') == self.name:
                 self.status_date = datetime.datetime.strptime(x_host.get('date'), "%Y-%m-%d %H:%M")
-                
+
                 for x_d in x_host.findall('Deployment'):
                     if x_d.get('name') in self.expected_deployments.keys():
                         self.expected_deployments[x_d.get('name')].loadStatus(x_d)
-    
+
                 self.upgradable_packages = [(p.get('name'),p.get('description')) for p in x_host.findall('Upgradable')]
                 self.unexpected_packages = [(p.get('name'),p.get('description')) for p in x_host.findall('Unexpected')]
         except xml.etree.ElementTree.ParseError as e:
             print("Error parsing status file {}: {}".format(status_file, e))
- 
- 
+
     def _setHealthAndStatus(self):
         """Determines health of the host, based on state of its software deployments.
         Note this function sets status"""
