@@ -36,7 +36,10 @@ def _aptitudeSearchList(search):
     args = ['aptitude', '--disable-columns', '--display-format', '%p %d', 'search', search]
     # Allow a none zero return code if nothing matches the search
     raw = subprocess.run(args, stdout=subprocess.PIPE).stdout.decode('utf-8')[:-1]
-    return [line.split(maxsplit=1) for line in raw.split('\n')]
+    if len(raw) > 0:
+        return [line.split(maxsplit=1) for line in raw.split('\n')]
+    else:
+        return [] 
 
 
 class Actor(SiteObject):
