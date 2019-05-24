@@ -36,8 +36,12 @@ def _aptitudeSearchList(search):
     args = ['aptitude', '--disable-columns', '--display-format', '%p %d', 'search', search]
     # Allow a none zero return code if nothing matches the search
     raw = subprocess.run(args, stdout=subprocess.PIPE).stdout.decode('utf-8')[:-1]
+
+    # Define a table to strip characters that potentially cause a problem in XML strings
+    drop_table = dict.fromkeys(map(ord, '"<>\\'), None)
     if len(raw) > 0:
-        return [line.split(maxsplit=1) for line in raw.split('\n')]
+        sanitized_lines = [line.translate(drop_table) for line in raw.split('\n')]
+        return [line.split(maxsplit=1) for line in sanitized_lines]
     else:
         return [] 
 
