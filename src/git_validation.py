@@ -32,7 +32,7 @@ def _remote_head(url):
 
 
 def _has_untracked_files(path):
-    """Returns True iff the git remote at path contains untracked files."""
+    """Returns True iff the git repository at path contains untracked files."""
     try:
         output = subprocess.check_output(['git', 'ls-files', '--exclude-standard',
                                           '--others'], cwd=path)
@@ -42,13 +42,13 @@ def _has_untracked_files(path):
 
 
 def _has_dirty_files(path):
-    """Returns True iff the git remote at path contains dirty files."""
+    """Returns True iff the git repository at path contains dirty files."""
     return subprocess.call(['git', 'diff-files', '--quiet'],
                            cwd=path, stdout=DEVNULL, stderr=DEVNULL) != 0
 
 
 def _has_staged_files(path):
-    """Returns True iff the git remote at path contains staged files."""
+    """Returns True iff the git repository at path contains staged files."""
     return subprocess.call(['git', 'diff-index', '--quiet', '--cached', 'HEAD'],
                            cwd=path, stdout=DEVNULL, stderr=DEVNULL) != 0
 
@@ -69,6 +69,8 @@ def check_repo(local_path, remote_url):
         'is_valid': False,
         'is_synchronized': False,
         'problem': None,
+        'local_hash': None,
+        'remote_hash': None,
     }
 
     # Check the local_path is a valid git repo and store its HEAD.
