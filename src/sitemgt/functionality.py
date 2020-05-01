@@ -1,15 +1,10 @@
 #========================================================
 # functionality.py
 #========================================================
-# $HeadURL:                                             $
-# Last $Author: jody $
-# $Revision: 742 $
-# $Date: 2009-12-28 02:23:37 -0600 (Mon, 28 Dec 2009) $
-#========================================================
 # PublicPermissions: True
 #========================================================
-# Classes to represent the functionality of a site;  
-# level level Capabilities, SystemRequirements, and 
+# Classes to represent the functionality of a site;
+# level level Capabilities, SystemRequirements, and
 # ActorRequirements
 #========================================================
 
@@ -45,7 +40,7 @@ class SystemRequirement(SiteObject):
 
     def __init__(self, x_element, capability):
         """Initialize the object"""
-        
+
         # Set basic properties
         SiteObject.__init__(self,x_element,'systemrequirement')
         self.text = self.text.replace("%","The System")
@@ -93,12 +88,12 @@ class SystemRequirement(SiteObject):
                 self.automatic_checks[idx] = global_check
             else:
                 site_description.automatic_checks[my_check.name] = my_check
-        
+
 
     def hostSets(self):
         """Return an set of supporting hosts and host groups"""
         return set([ar.actor for ar in self.actor_requirement_dict.values() if ar.actor.isHostSet()])
-            
+
     def hosts(self):
         """Return an set of supporting hosts, with groups expanded"""
         host_sets = self.hostSets()
@@ -107,7 +102,7 @@ class SystemRequirement(SiteObject):
             if act.isGroup():   hosts.update(act.members.values())
             else:               hosts.add(act)
         return hosts
-                    
+
     def userSets(self):
         """Return an set of supporting users and user groups"""
         return set([ar.actor for ar in self.actor_requirement_dict.values() if not ar.actor.isHostSet()])
@@ -129,7 +124,7 @@ class SystemRequirement(SiteObject):
         return self.capability.htmlName() + "#" + self.uid
 
     def _setHealthAndStatus(self):
-        """Determines health of the system requirement, based on health of its verification strategy, 
+        """Determines health of the system requirement, based on health of its verification strategy,
         check results, and the decomposition"""
         # Failure to fully decompose to a lower level means we are not healthy
         if self.decomposition == 'None':
@@ -205,7 +200,7 @@ class AutomaticCheck(SiteObject):
                     self.stale = self.outcomes[-1].isStale(self.maxStalenessDays)
             except ValueError as ex:
                 self.outcome_error = str(ex)
-    
+
     def lastOutcome(self):
         """Returns the most recent outcome if one exists, or None otherwise"""
         return self.outcomes[-1] if self.outcomes else None
@@ -233,7 +228,7 @@ class ManualCheck(SiteObject):
         self.system_requirement = system_requirement
 
     def _setHealthAndStatus(self):
-        """Determines the [fixed] health of the check.""" 
+        """Determines the [fixed] health of the check."""
         self._health = OFF
         self._status = "ManuallyAssured"
 
@@ -243,7 +238,7 @@ class ActorRequirement(SiteObject):
 
     _expand_dicts = [['system_requirements','components'],['system_requirements','components']]
     _expand_objects = [['actor']]
-    
+
     def __init__(self, x_element, actor):
         """Initialize the object"""
         SiteObject.__init__(self,x_element,'actorrequirement')
@@ -263,7 +258,7 @@ class ActorRequirement(SiteObject):
         for cmp_name in sorted(self.primary_components.keys()):
             cmp = siteDescription.components[cmp_name]
             self.primary_components[cmp_name] = cmp
-    
+
     def uidNumber(self):
         return int(self.uid[1:])
 
@@ -289,9 +284,9 @@ class ActorRequirement(SiteObject):
 
 class ActorResponsibility(SiteObject):
     """A partitioning of functionality to an actor set in support of a site capability"""
-    
+
     _expand_objects = [['capability','actor']]
-    
+
     def __init__(self, x_element, capability):
         """Initialize the object"""
         if x_element.tag == 'UserResponsibility':
@@ -301,16 +296,16 @@ class ActorResponsibility(SiteObject):
             SiteObject.__init__(self,x_element,'hostresponsibility')
             self.description = self.description.replace("%",self.host_set)
         self.capability = capability
-        
+
     def _crossLink(self, siteDescription):
         """Initialize references to other objects within the site description"""
         self.actor = siteDescription.actors[self.user_set if hasattr(self,'user_set') else self.host_set]
         self.actor.responsibilities[self.capability.name] = self
-        
+
 
 class Capability(SiteObject):
     """A high level site capability"""
-    
+
     _expand_dicts = [['responsibility_dict','requirement_dict']]
     #Translation table from system requirement importance and health to own health
     _translation = {
@@ -322,17 +317,17 @@ class Capability(SiteObject):
                     }
 
     def __init__(self, x_element):
-        """Initialize the object"""        
+        """Initialize the object"""
         # Set basic attributes
         SiteObject.__init__(self,x_element,'capability')
-        # Populate a list (for order) and dict (for lookup) of all child requirements    
+        # Populate a list (for order) and dict (for lookup) of all child requirements
         self.requirement_dict = {}
         self.requirement_list = []
         for x_sr in x_element.findall('SystemRequirement'):
             sr = SystemRequirement(x_sr, self)
             self.requirement_dict[sr.uid] = sr
             self.requirement_list.append(sr)
-        # Populate a list and dict of all child responsibilities        
+        # Populate a list and dict of all child responsibilities
         self.responsibility_dict = {}
         self.responsibility_list = []
         for x_rsp in x_element.findall('UserResponsibility'):
@@ -343,14 +338,14 @@ class Capability(SiteObject):
             rsp = ActorResponsibility(x_rsp, self)
             self.responsibility_dict[rsp.host_set] = rsp
             self.responsibility_list.append(rsp)
-            
+
     def _crossLink(self, siteDescription):
         """Initialize references to other non capability objects"""
         for req in self.requirement_dict.values():
             req._crossLink(siteDescription)
         for resp in self.responsibility_dict.values():
             resp._crossLink(siteDescription)
-            
+
     def _setHealthAndStatus(self):
         """Determines health of the system requirement, based on health of its actor requirement_dict"""
         self._health = Health.worst([self._translation[sr.importance][sr.health] for sr in self.requirement_list])

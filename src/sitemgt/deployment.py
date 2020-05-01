@@ -1,14 +1,9 @@
 #========================================================
 # software.py
 #========================================================
-# $HeadURL:                                             $
-# Last $Author: jody $
-# $Revision: 742 $
-# $Date: 2009-12-28 02:23:37 -0600 (Mon, 28 Dec 2009) $
-#========================================================
 # PublicPermissions: True
 #========================================================
-# Classes to represent and assess the deployment of a 
+# Classes to represent and assess the deployment of a
 # software component onto hardware hosts
 #========================================================
 
@@ -31,7 +26,7 @@ class _ComparisonState(object):
     MASTER_FILE_NEWER = 3
     LOCAL_FILE_NEWER = 4
     NO_MASTER_FILE = 5
-    
+
     def __init__(self,local_path,master_path):
         """Determine relative state of supplied path"""
         if not os.path.exists(local_path):
@@ -53,7 +48,7 @@ class Deployment(SiteObject):
     _possibleStates = {'Installed':GOOD, 'Missing':FAIL, 'PartiallyInstalled':DEGD,
                        'ModifiedLocally':FAULT, 'OutOfDate':DEGD, 'Unknown': UNKNOWN,
                        'NotConfigured':DEGD, 'DependencyProblem':''}
-   
+
     def __init__(self, host, component, location = None):
         """Initialize object"""
         self.type = 'deployment'
@@ -71,9 +66,9 @@ class Deployment(SiteObject):
             self.location = location
         elif hasattr(self.component, 'installLocation'):
             self.location = self.component.installLocation
-    
+
     def _addRequirement(self,requirement,primary):
-        """Link the Deployment as being driven by the specified requirement, 
+        """Link the Deployment as being driven by the specified requirement,
         upgrading secondary status to primary if necessary"""
 
         if primary:
@@ -82,25 +77,25 @@ class Deployment(SiteObject):
                 del self.secondary_requirements[requirement.uid]
         elif requirement.uid not in self.primary_requirements:
             self.secondary_requirements[requirement.uid] = requirement
-            
+
         self.component.requirements[requirement.uid] = requirement
         requirement.components[self.component.name] = self.component
         requirement.deployments[self.name] = self
-    
+
     def locationDescription(self):
-        """Returns a string assessment of the deployment location""" 
+        """Returns a string assessment of the deployment location"""
         if hasattr(self, 'location'):
             return self.location
-        elif hasattr(self.component, 'package'): 
+        elif hasattr(self.component, 'package'):
             return 'Via Repository'
         else:
             return 'Unknown'
 
     def _setHealthAndStatus(self):
         """Determines health of the deployment, based on own state and dependents."""
-        # While we may be recursing set our own health to the native value 
+        # While we may be recursing set our own health to the native value
         self._health = self._possibleStates[self._status]
-            
+
         #Now see if any dependent is worst than we are
         for dep_name in self.component.dependencies.keys():
             if dep_name in self.host.expected_deployments:
@@ -137,7 +132,7 @@ class Deployment(SiteObject):
             else:
                 self._status = "PartiallyInstalled"
         elif isinstance(self.component, NonRepoApplication):
-            # For non repo apps can only check existence of a path 
+            # For non repo apps can only check existence of a path
             if hasattr(self.component,"install_location"):
                 if os.path.exists(self.component.install_location):
                     self._status = "Installed"
@@ -167,7 +162,7 @@ class Deployment(SiteObject):
             # up to date working copy of the repository
             cm_working_path = os.path.join(cm_working_root, self.component.cm_location, self.component.cm_filename)
             cmp = _ComparisonState(self.location,cm_working_path)
-            
+
             if cmp.state == _ComparisonState.MATCH:                 self._status = "Installed"
             elif cmp.state == _ComparisonState.NO_LOCAL_FILE:       self._status = "Missing"
             elif cmp.state == _ComparisonState.LOCAL_FILE_NEWER:    self._status = "ModifiedLocally"
@@ -184,7 +179,7 @@ class Deployment(SiteObject):
         self.resetHealth()
         if hasattr(self,'error'): delattr(self,'error')
         if hasattr(self,'installed_packages'): delattr(self,'installed_packages')
-        
+
     def saveStatus(self, tag_writer):
         """Dumps the current status into the supplied XML tag writer object"""
         if hasattr(self,'status'):
@@ -195,8 +190,8 @@ class Deployment(SiteObject):
                 for pkg in self.installed_packages:
                     tag_writer.write('Installed','name="{}"'.format(pkg))
             tag_writer.close()
-        
-    def loadStatus(self,x_element):      
+
+    def loadStatus(self,x_element):
         """Load the current status from the supplied XML element object"""
         self.resetStatus()
         if x_element.get('status') is not None:
@@ -205,7 +200,7 @@ class Deployment(SiteObject):
                 self.error = x_element.get('error')
             if isinstance(self.component, RepoApplication):
                 self.installed_packages = [x_i.get('name') for x_i in x_element.findall('Installed')]
- 
+
     def missingPackages(self):
         """Returns a list of all expected but not installed packages"""
         if hasattr(self,'installed_packages'):
@@ -216,5 +211,3 @@ class Deployment(SiteObject):
     def verboseStatus(self):
         """Returns a status string including the error where one exists"""
         return self.status + (" ({})".format(self.error) if hasattr(self,'error') else '')
-    
-        

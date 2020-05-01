@@ -19,8 +19,8 @@ from sitemgt.general import initializeObjectFromXmlElement, initializeXmlElement
 
 _ELEMENT_NAME = "Report"
 _ROOT_NAME = "StatusReports"
-  
-    
+
+
 def getHostName():
     return socket.gethostname().lower()
 
@@ -28,7 +28,7 @@ def getCurrentTime():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 def getIpV4Address():
-    # In the normal case we only expect one non-loopback address, but generate a 
+    # In the normal case we only expect one non-loopback address, but generate a
     # semicolon separated list for completeness
     addresses = []
     lines = subprocess.check_output(['ip','-o','-4','addr']).decode("utf-8").split("\n")
@@ -76,7 +76,7 @@ def getSecondWordOfFirstLine(command, sentinal_word):
 # Define an ordered list of the fields we will define, including pointers to the
 # functions used to calculate and optionally format them
 
-_STANDARD_FIELDS = [ 
+_STANDARD_FIELDS = [
     {'name':'host', 'header':None, 'formatFn':None, 'calcFn':getHostName},
     {'name':'timestamp', 'header':'Date', 'formatFn':None, 'calcFn':getCurrentTime},
     {'name':'ip_v4', 'header':'IP Address', 'formatFn':None, 'calcFn':getIpV4Address},
@@ -86,7 +86,7 @@ _STANDARD_FIELDS = [
     {'name':'printer_name', 'header':'Printer', 'formatFn':None, 'calcFn':getFirstPrinterName},
                    ]
 
-_PREFIX_FIELDS = [ 
+_PREFIX_FIELDS = [
     {'prefix':'disk_', 'headerFn':None, 'formatFn':None, 'calcFn':getHostName},
     ]
 
@@ -96,15 +96,15 @@ _EXCLUSION_DICT = dict(zip(_EXCLUDED_ATTRIBUTES, [None]*len(_EXCLUDED_ATTRIBUTES
 class HostStatusReport(object):
     """A single report of high level status for a host"""
 
-    @staticmethod 
+    @staticmethod
     def createFromXmlElement(x_element):
         """Return a new status report object based on the supplied XML element"""
         report = HostStatusReport()
         initializeObjectFromXmlElement(report, x_element, {})
         report._buildAttrToPrefixMap()
         return report
-    
-    @staticmethod 
+
+    @staticmethod
     def createListFromXmlFile(filename, max_quantity):
         """Return a list of the first max_quantity reports found in the specified xml file"""
         reports = []
@@ -113,12 +113,12 @@ class HostStatusReport(object):
             reports.append(HostStatusReport.createFromXmlElement(el))
             if len(reports) >= max_quantity: break
         return reports
-    
-    @staticmethod 
+
+    @staticmethod
     def createFirstFromXmlFile(filename):
         """Return the first status report found in the specified xmlFile"""
         return HostStatusReport.createListFromXmlFile(filename, 1)[0]
-    
+
     @staticmethod
     def createFromCurrentHostState():
         """Return a new status report object based on the supplied XML element"""
@@ -127,7 +127,7 @@ class HostStatusReport(object):
             setattr(report, fld['name'], fld['calcFn']())
         report._buildAttrToPrefixMap()
         return report
-    
+
     def _buildAttrToPrefixMap(self):
         """Create a map indexed by attribute name to the Field information about that attribute"""
         self.att_map = dict()
@@ -144,13 +144,13 @@ class HostStatusReport(object):
                 raise Exception("Found {} matching prefixes for attribute {}".format(len(matching_pf), a))
             else:
                 self.att_map[a] = matching_pf[0]
-        
+
     def writeToXmlElement(self):
         """Return a new xml element based on the current report state"""
         el = Element(_ELEMENT_NAME)
         initializeXmlElementFromObject(el, self, _EXCLUSION_DICT)
         return el
- 
+
     def insertIntoXmlFile(self, filename):
         """Add the current object as the first report in the specified file, creating if necessary"""
         if not os.path.exists(filename):
@@ -161,14 +161,14 @@ class HostStatusReport(object):
             root = tree.getroot()
         root.insert(0, self.writeToXmlElement())
         tree.write(filename, "UTF-8")
-   
+
     def getAttributesAndHeaders(self):
-        """Return an ordered list of (attribute_name,attribute_header) tuples for all attributes 
+        """Return an ordered list of (attribute_name,attribute_header) tuples for all attributes
         interesting enough to have a header"""
         ret = [(f['name'], f['header']) for f in _STANDARD_FIELDS if f['header']]
         #TODO: Go through all prefix fields looking for attributes which match, then using a fn to format the attribute name
         return ret
-    
+
     def getFormattedAttribute(self, attribute_name):
         if attribute_name in self.att_map:
             fld = self.att_map[attribute_name]
@@ -178,6 +178,6 @@ class HostStatusReport(object):
                 return str(getattr(self,attribute_name))
         else:
             return ""
-    
+
     def __str__(self):
         return "\n".join(["{} := {}".format(x, getattr(self,x)) for x in self.__dict__.keys()])

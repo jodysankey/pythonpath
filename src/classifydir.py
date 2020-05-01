@@ -1,15 +1,10 @@
 #========================================================
 # ClassifyDir.py
 #========================================================
-# $HeadURL:                                             $
-# Last $Author: jody $
-# $Revision: 742 $
-# $Date: 2009-12-28 02:23:37 -0600 (Mon, 28 Dec 2009) $
-#========================================================
 # PublicPermissions: True
 #========================================================
-# Class to build a hierarchy of directories with 
-# information about how they should be backed up, 
+# Class to build a hierarchy of directories with
+# information about how they should be backed up,
 # as determined by .classify files
 #========================================================
 
@@ -44,7 +39,7 @@ REQUIRED_SETTINGS = {
         ('true', 'Data will compress successfully'),
         ('false', 'Data will not compress significantly'),
     ],
-} 
+}
 OPTIONAL_SETTINGS = ['name']
 
 VOLUMES = [entry[0] for entry in REQUIRED_SETTINGS['volume'] if entry[0] != 'none']
@@ -54,8 +49,8 @@ VOLUME_COLORS = {entry[0]: entry[2] for entry in REQUIRED_SETTINGS['volume']}
 PROTECTION_COLORS = {entry[0]: entry[2] for entry in REQUIRED_SETTINGS['protection']}
 
 # Status = implicit,explicit,undefined
- 
-              
+
+
 class ClassifiedDir(object):
     """A class to store and report the classification of a single
     directory, as declared by magic .classify files."""
@@ -80,7 +75,7 @@ class ClassifiedDir(object):
         self.file_count = 0 if fetch_info else None
         self.last_change = 0 if fetch_info else None
         self.content_hash = b'' if fetch_info else None
-        
+
         # detect and read the magic file if appropriate
         config_file = os.path.join(self.full_path, MAGIC_FILE)
         if os.path.isfile(config_file):
@@ -89,7 +84,7 @@ class ClassifiedDir(object):
             self.__propogateDeepestExplicit()
         else:
             self.name = self.base_name
-            if not parent or parent.__status == 'undefined':                
+            if not parent or parent.__status == 'undefined':
                 self.__status = 'undefined'
                 self.volume = None
                 self.protection = None
@@ -112,7 +107,7 @@ class ClassifiedDir(object):
 
     def descendants(self):
         """generator function for all descendant or self classifydir objects."""
-        # Stack is a list of remaining node lists for each level in a DFS 
+        # Stack is a list of remaining node lists for each level in a DFS
         to_visit = [self]
         while to_visit:
             node = to_visit.pop(0)
@@ -124,16 +119,16 @@ class ClassifiedDir(object):
         for decendent in self.descendants():
             if decendent.isArchiveRoot():
                 yield decendent
-    
+
     def descendantMembers(self):
         """generator function for descendant or self classifydirs inside the current archive. This
         method may only be called on an archive root."""
         if not self.isArchiveRoot():
-            raise Exception(self.base_name + ' is not an archive root') 
+            raise Exception(self.base_name + ' is not an archive root')
         for descendant in self.descendants():
             if descendant.archiveRoot() is self:
                 yield descendant
-    
+
     def totalSize(self):
         """return total size of directory and all children"""
         if self.size == None:
@@ -160,7 +155,7 @@ class ClassifiedDir(object):
     def isArchiveRoot(self):
         """return true iff this directory is the root of an archive"""
         return self.__status == 'explicit' and self.volume != 'none'
-        
+
     def archiveSize(self):
         """return total size of files in an archive when called on the root"""
         return sum(cd.size for cd in self.descendantMembers())
@@ -206,7 +201,7 @@ class ClassifiedDir(object):
         except StopIteration:
             return
         for entry in sorted(dirs):
-            child_path = os.path.join(self.rel_path, entry) 
+            child_path = os.path.join(self.rel_path, entry)
             child = ClassifiedDir(base_path, fetch_info, max_recursion_depth, child_path, self)
             self.children.append(child)
         if fetch_info:
@@ -256,7 +251,7 @@ class ClassifiedDir(object):
             if value not in [vd[0] for vd in REQUIRED_SETTINGS[tag]]:
                 raise Exception("Invalid value '{}' for {}".format(value, tag))
         elif tag not in OPTIONAL_SETTINGS:
-            raise Exception("Unknown setting '{}'".format(tag))            
+            raise Exception("Unknown setting '{}'".format(tag))
         if hasattr(self, tag):
             raise Exception("Duplicate setting for {}".format(tag))
 
@@ -273,7 +268,7 @@ def _parseLine(line):
         return (tag_value[0], tag_value[1])
     else:
         return None
-    
+
 def _stringBool(value):
     """Returns a matching boolean if the input is true or false, else no change."""
     if value == 'true': return True

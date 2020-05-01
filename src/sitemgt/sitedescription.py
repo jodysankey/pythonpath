@@ -1,16 +1,11 @@
 #========================================================
 # SiteDescription.py
 #========================================================
-# $HeadURL:                                             $
-# Last $Author: jody $
-# $Revision: 742 $
-# $Date: 2009-12-28 02:23:37 -0600 (Mon, 28 Dec 2009) $
-#========================================================
 # PublicPermissions: True
 #========================================================
-# SiteDescription class to parse standard format XML 
+# SiteDescription class to parse standard format XML
 # file and create a matching Python representation, based
-# mainly on classes derived from SiteObject 
+# mainly on classes derived from SiteObject
 #========================================================
 
 import xml.etree.ElementTree
@@ -54,7 +49,7 @@ class SiteDescription(object):
     def __init__(self,filename):
         """Initialize the site description object, building dictionaries for each typename of information"""
         self.filename = filename
-        
+
         # Find XML root elements for each key typename of information
         tree = xml.etree.ElementTree.parse(filename)
         book = tree.getroot()
@@ -66,7 +61,7 @@ class SiteDescription(object):
         self.default_repository = x_components.get('default_repository')
 
         # Note the order in which different object types are linked is important
-        # since there are a (small number) of assumptions about what exists first 
+        # since there are a (small number) of assumptions about what exists first
 
         #Prebuild a dictionary of functional references for every actor
         actor_x_funcs = {}
@@ -80,7 +75,7 @@ class SiteDescription(object):
         self.user_groups = makeActorDictionary(UserGroup, x_actors.findall('UserGroup'), actor_x_funcs)
         self.hosts = makeActorDictionary(Host, x_actors.findall('Host'), actor_x_funcs)
         self.host_groups = makeActorDictionary(HostGroup, x_actors.findall('HostGroup'), actor_x_funcs)
-        # Assemble dictionary of all actors  
+        # Assemble dictionary of all actors
         self.actors = mergeDictionaries([self.users, self.user_groups, self.hosts, self.host_groups])
 
         # Assemble dictionary of all actors requirement_dict and link actors to each other
@@ -91,12 +86,12 @@ class SiteDescription(object):
 
 
         # Assemble dictionaries of all software component types
-        self.languages = makeObjectDictionary(Language,x_languages.findall('*'))    
+        self.languages = makeObjectDictionary(Language,x_languages.findall('*'))
 
-        self.applications = makeObjectDictionary(RepoApplication,x_components.findall('RepoApplication'))    
-        self.applications.update(makeObjectDictionary(RepoApplication,x_components.findall('RepoApplicationSet')))   
-        self.applications.update(makeObjectDictionary(NonRepoApplication,x_components.findall('NonRepoApplication')))   
-        self.scripts =      makeObjectDictionary(Script,x_components.findall('Script'))    
+        self.applications = makeObjectDictionary(RepoApplication,x_components.findall('RepoApplication'))
+        self.applications.update(makeObjectDictionary(RepoApplication,x_components.findall('RepoApplicationSet')))
+        self.applications.update(makeObjectDictionary(NonRepoApplication,x_components.findall('NonRepoApplication')))
+        self.scripts =      makeObjectDictionary(Script,x_components.findall('Script'))
         self.config_files = makeObjectDictionary(ConfigFile,x_components.findall('ConfigurationFile'))
         self.other_files =  makeObjectDictionary(OtherFile,x_components.findall('OtherFile'))
         self.components =   mergeDictionaries([self.applications, self.scripts, self.config_files, self.other_files])
@@ -115,7 +110,7 @@ class SiteDescription(object):
         # Link actors to other objects
         for actor in self.actors.values():
             actor._crossLink(self)
-        
+
     def loadDeploymentStatusFromXmlFile(self):
         """Loads deployment files for every host with a file matching filename_format"""
         for host in self.hosts.values():

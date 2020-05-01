@@ -1,11 +1,6 @@
 #========================================================
 # siteobject.py
 #========================================================
-# $HeadURL:                                             $
-# Last $Author: jody $
-# $Revision: 742 $
-# $Date: 2009-12-28 02:23:37 -0600 (Mon, 28 Dec 2009) $
-#========================================================
 # PublicPermissions: True
 #========================================================
 # Base class for all SiteDescription objects
@@ -36,7 +31,7 @@ class Health(object):
         """Returns the worst health from the supplied list. Unknown trumps good, fault and off"""
         top = max(comparison_list)
         if top < DEGD and UNKNOWN in comparison_list: return UNKNOWN
-        return top 
+        return top
 
     @staticmethod
     def amortized(comparison_list):
@@ -45,7 +40,7 @@ class Health(object):
         top = max(comparison_list)
         if top < DEGD and UNKNOWN in comparison_list: return UNKNOWN
         if top is FAIL and len([x for x in comparison_list if (x>=GOOD and x<=DEGD)])>0 : return DEGD
-        return top 
+        return top
 
 UNKNOWN = Health(-2,"unknown")
 OFF = Health(-1,"unmonitored")
@@ -58,10 +53,10 @@ HEALTH_CALC_MARKER = "health_status_calculation_in_progress"
 
 class CheckOutcome(object):
     """A single outcome of an automatic check, capable of writing and reading from a results file.
-       Each line of the results file is in the form: 
+       Each line of the results file is in the form:
             datetime, outcome, [value], [threshold], description
-       where datetime is local time and standard format, outcome is 'pass' or 'fail', and (if present) 
-       value and threshold are numbers. For laziness of CSV parsing, the description string does not 
+       where datetime is local time and standard format, outcome is 'pass' or 'fail', and (if present)
+       value and threshold are numbers. For laziness of CSV parsing, the description string does not
        contain any commas"""
     def __init__(self, success, description, value=None, threshold=None, timestamp=None):
         self.timestamp = datetime.now() if timestamp is None else timestamp
@@ -69,7 +64,7 @@ class CheckOutcome(object):
         self.value = value
         self.threshold = threshold
         self.description = description.replace(',','-') #Note we avoid commas for simpler parsing
-    
+
     def valueOrString(self, s):
         return s if self.value is None else str(self.value)
     def thresholdOrString(self, s):
@@ -85,7 +80,7 @@ class CheckOutcome(object):
     def fileString(self):
         """Returns the standard string encoding of this result"""
         return ", ".join([
-            self.timestamp.strftime("%Y-%m-%d %H:%M:%S"), 
+            self.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
             self.outcome(),
             self.valueOrString(''),
             self.thresholdOrString(''),
@@ -115,7 +110,7 @@ class CheckOutcome(object):
             try:
                 timestamp = datetime.strptime(components[0], "%Y-%m-%d %H:%M:%S")
                 return CheckOutcome(
-                    components[1].upper() == 'PASS', 
+                    components[1].upper() == 'PASS',
                     components[4],
                     None if components[2] == '' else float(components[2]),
                     None if components[3] == '' else float(components[3]),
@@ -125,8 +120,8 @@ class CheckOutcome(object):
 
 def initializeObjectFromXmlElement(obj, x_element, remap_dict):
     """Sets fields on an object equal to attributes on an XML element. If the attribute exists
-    in remap_dict mapped to None it will be omitted, if the attribute exists in remap_dict 
-    mapped to a different string it will be output with this name""" 
+    in remap_dict mapped to None it will be omitted, if the attribute exists in remap_dict
+    mapped to a different string it will be output with this name"""
     for (att_name, att_value) in x_element.items():
         if att_name in remap_dict.keys():
             if remap_dict[att_name] is None:
@@ -137,11 +132,11 @@ def initializeObjectFromXmlElement(obj, x_element, remap_dict):
             setattr(obj, att_name, att_value)
 
 def initializeXmlElementFromObject(x_element, obj, remap_dict):
-    """Sets attributes on an XmlElement equal to simple fields on a python object. If the field 
-    exists in remap_dict mapped to None it will be omitted, if the field exists in remap_dict 
-    mapped to a different string it will be output with this name""" 
+    """Sets attributes on an XmlElement equal to simple fields on a python object. If the field
+    exists in remap_dict mapped to None it will be omitted, if the field exists in remap_dict
+    mapped to a different string it will be output with this name"""
     for att_name in [x for x in obj.__dict__.keys() if type(obj.__dict__[x]) == type('')]:
-        att_value = obj.__dict__[att_name] 
+        att_value = obj.__dict__[att_name]
         if att_name in remap_dict.keys():
             if remap_dict[att_name] is None:
                 pass # Don't include this attribute
@@ -149,14 +144,14 @@ def initializeXmlElementFromObject(x_element, obj, remap_dict):
                 x_element.set(remap_dict[att_name], att_value)
         else:
             x_element.set(att_name, att_value)
-  
+
 
 class SiteObject(object):
     """An abstract base class for site entities created using a XML etree.ElementTree.Element"""
-    
+
     _expand_dicts = []
     _expand_objects = []
-    
+
     def __init__(self, x_element, type_name):
         """Initialize all XML attributes as properties, and sets a typename name"""
         self._health = None
@@ -174,7 +169,7 @@ class SiteObject(object):
         a function of Tier. In general fewer children are included at higher tiers, and children are
         call with a higher tier to limit recursion depth"""
         # Build a first line of our name, type, and non-dictionary attributes
-        attribs = ", ".join([x+':' + str(self.__dict__[x]) for x in self.__dict__.keys() 
+        attribs = ", ".join([x+':' + str(self.__dict__[x]) for x in self.__dict__.keys()
                              if x!='name' and x!='type' and type(self.__dict__[x]) == type('')])
         lines = ["{}::{} {}{}{}".format(type(self).__name__, self.name, '{', attribs, '}')]
 
@@ -187,7 +182,7 @@ class SiteObject(object):
             for ob_name in self._expand_objects[tier]:
                 if hasattr(self,ob_name):
                     lines.append(" {} link :=".format(ob_name))
-                    lines.extend(["  " + ln for ln in self.__dict__[ob_name]._lines(tier+1)]) 
+                    lines.extend(["  " + ln for ln in self.__dict__[ob_name]._lines(tier+1)])
 
         # Expand out all contents of all dictionaries we are meant to at this tier
         if tier < len(self._expand_dicts):
@@ -195,10 +190,10 @@ class SiteObject(object):
                 if hasattr(self,dict_name) and len(self.__dict__[dict_name])>0:
                     lines.append(" {} {} :=".format(len(self.__dict__[dict_name]),dict_name))
                     for ob in self.__dict__[dict_name].values():
-                        lines.extend(["  " + ln for ln in ob._lines(tier+1)]) 
+                        lines.extend(["  " + ln for ln in ob._lines(tier+1)])
         return lines
 
-    
+
     def resetHealth(self):
         """Clears the health and status attributes to force recalculation"""
         self._health = None
@@ -224,7 +219,7 @@ class SiteObject(object):
             self._setHealthAndStatus()
             delattr(self,HEALTH_CALC_MARKER)
         return self._status
-    
+
     def htmlName(self):
         """Return the file name to be used for an associated html"""
         return self.type.lower().replace(' ','_') + "_" + self.name.replace(' ','_') + ".html"
@@ -232,4 +227,3 @@ class SiteObject(object):
     def htmlClass(self):
         """Return a CSS class attribute based on the current health"""
         return ' class="{}"'.format(self.health.name)
-

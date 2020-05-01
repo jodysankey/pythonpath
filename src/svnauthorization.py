@@ -1,14 +1,9 @@
 #========================================================
 # svnauthorization.py
 #========================================================
-# $HeadURL:                                             $
-# Last $Author: jody $
-# $Revision: 742 $
-# $Date: 2009-12-28 02:23:37 -0600 (Mon, 28 Dec 2009) $
-#========================================================
 # PublicPermissions: True
 #========================================================
-# Simple class to gather authority to access the 
+# Simple class to gather authority to access the
 # subversion repositories, either by reading the standard
 # file or by prompting the user
 #========================================================
@@ -20,7 +15,7 @@ import os
 
 class SvnAuthorization(object):
     """Simple class to gather and report a subversion username/password pair"""
-    
+
     def __init__(self):
         (self.username, self.password) = (None, None)
 
@@ -34,7 +29,7 @@ class SvnAuthorization(object):
                 (self.username,self.password) = params
                 return True
         return False
-        
+
     def readFromTerminal(self):
         self.username = input("Please enter subversion username: ")
         self.password = input("Please enter subversion password: ")

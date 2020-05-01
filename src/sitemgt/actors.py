@@ -1,15 +1,10 @@
 #========================================================
 # actors.py
 #========================================================
-# $HeadURL:                                             $
-# Last $Author: jody $
-# $Revision: 742 $
-# $Date: 2009-12-28 02:23:37 -0600 (Mon, 28 Dec 2009) $
-#========================================================
 # PublicPermissions: True
 #========================================================
-# Classes to represent the actors within a site, both  
-# computers (Hosts) and Users, and the deployment of 
+# Classes to represent the actors within a site, both
+# computers (Hosts) and Users, and the deployment of
 # software components onto Hosts
 #========================================================
 
@@ -43,7 +38,7 @@ def _aptitudeSearchList(search):
         sanitized_lines = [line.translate(drop_table) for line in raw.split('\n')]
         return [line.split(maxsplit=1) for line in sanitized_lines]
     else:
-        return [] 
+        return []
 
 
 class Actor(SiteObject):
@@ -53,7 +48,7 @@ class Actor(SiteObject):
     _expand_objects = []
 
     def __init__(self, x_definition, x_functionality, is_group, typename):
-        """Initialize the object"""        
+        """Initialize the object"""
         # Set basic attributes
         SiteObject.__init__(self, x_definition, typename)
 
@@ -110,7 +105,7 @@ class Host(Actor):
     """A computer within the site"""
 
     def __init__(self, x_definition, x_functionality):
-        """Initialize the object"""        
+        """Initialize the object"""
         Actor.__init__(self, x_definition, x_functionality, False, 'host')
         self.expected_deployments = {}
 
@@ -157,7 +152,7 @@ class Host(Actor):
 
         raw_orphaned = subprocess.check_output(['debfoster','-ns']).decode('utf-8')
         orphaned_packages = raw_orphaned[raw_orphaned.find('\n')+1:].split()
-        orphaned_packages = [p for p in orphaned_packages if not p.startswith('linux-headers-') and not p.startswith('linux-image-')]        
+        orphaned_packages = [p for p in orphaned_packages if not p.startswith('linux-headers-') and not p.startswith('linux-image-')]
 
         installed_packages = _aptitudeSearchList('~i')
 
@@ -182,18 +177,18 @@ class Host(Actor):
         else:
             return []
 
-    def resetDeploymentStatus(self):      
+    def resetDeploymentStatus(self):
         """Clears all existing component deployment information"""
         self.resetHealth()
         self._status = None
-        if hasattr(self,'status_date'): 
+        if hasattr(self,'status_date'):
             delattr(self,'status_date')
-        if hasattr(self,'upgradable_packages'): 
+        if hasattr(self,'upgradable_packages'):
             delattr(self,'upgradable_packages')
-        if hasattr(self,'unexpected_packages'): 
+        if hasattr(self,'unexpected_packages'):
             delattr(self,'unexpected_packages')
         for depl in self.expected_deployments.values():
-            depl.resetStatus()            
+            depl.resetStatus()
 
     def deploymentFileExists(self):
         """Returns true if the standard XML deployment file for the host exists"""
@@ -206,7 +201,7 @@ class Host(Actor):
         tag_writer.open('Host','name="{}" date="{}"'.format(self.name, self.status_date.strftime("%Y-%m-%d %H:%M")))
 
         for depl in self.expected_deployments.values():
-            depl.saveStatus(tag_writer)            
+            depl.saveStatus(tag_writer)
         for pkg in self.upgradable_packages:
             tag_writer.write('Upgradable','name="{}" description="{}"'.format(pkg[0], escape(pkg[1])))
         for pkg in self.unexpected_packages:
@@ -214,7 +209,7 @@ class Host(Actor):
 
         tag_writer.close(2)
 
-    def loadDeploymentStatusFromXmlFile(self):      
+    def loadDeploymentStatusFromXmlFile(self):
         """Load the component deployment status from the standard file, using an XML ElementTree"""
         self.resetDeploymentStatus()
 
@@ -267,7 +262,7 @@ class Host(Actor):
 class HostGroup(Actor):
     """A collections of computers within the site"""
     def __init__(self, x_definition, x_functionality):
-        """Initialize the object"""        
+        """Initialize the object"""
         Actor.__init__(self, x_definition, x_functionality, True, 'hostgroup')
     def _deployRequirement(self, requirement):
         """Document the deployment of all components needed by a requirement to our members"""
@@ -282,12 +277,12 @@ class HostGroup(Actor):
 class User(Actor):
     """A user of the site"""
     def __init__(self, x_definition, x_functionality):
-        """Initialize the object"""        
+        """Initialize the object"""
         Actor.__init__(self, x_definition, x_functionality, False, 'user')
 
 
 class UserGroup(Actor):
     """A collection of users of the site"""
     def __init__(self, x_definition, x_functionality):
-        """Initialize the object"""        
+        """Initialize the object"""
         Actor.__init__(self, x_definition, x_functionality, True, 'usergroup')

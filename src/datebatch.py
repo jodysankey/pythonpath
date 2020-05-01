@@ -1,11 +1,6 @@
 #========================================================
 # DateBatch.py
 #========================================================
-# $HeadURL:                                             $
-# Last $Author$
-# $Revision$
-# $Date$
-#========================================================
 # PublicPermissions: True
 #========================================================
 # DateBatcher class to call specified functions at date
@@ -44,7 +39,7 @@ class DateBatcher(object):
         self.function = None
 
 
-    
+
     def setUsingDir(self,dir,spacing,count,function,log=""):
         """Initialize class to create dated subdirectories within dir.
 
@@ -79,9 +74,9 @@ class DateBatcher(object):
 
     def validate(self):
         """Throw an exception if the instance variables are not valid"""
-        if self.count<1 or self.spacing<1: 
+        if self.count<1 or self.spacing<1:
             raise AttributeError
-        if len(self.dir)<1: 
+        if len(self.dir)<1:
             raise AttributeError
         if not self.function or not hasattr(self.function,'__call__'):
             raise AttributeError
@@ -102,7 +97,7 @@ class DateBatcher(object):
                     mo = re.search(r"(\d{4})-(\d{2})-(\d{2})",line)
                     if mo is not None:
                         last_date = date(*[int(x) for x in mo.groups()])
-        
+
         return last_date
 
 
@@ -131,16 +126,16 @@ class DateBatcher(object):
         """Perform the run, but only if required"""
         self.__execute(False)
 
-        if len(self.dir)<1: 
+        if len(self.dir)<1:
             raise AttributeError
 
-            
+
 
 
     def __datedDirs(self):
         """Returns an ordered list of all date subdirectories, latest first"""
         assert self.dirMode
-        
+
         dated_dirs = []
         for string in os.listdir(self.dir):
                 mo = re.search(r"(\d{4})-(\d{2})-(\d{2})",string)
@@ -168,7 +163,7 @@ class DateBatcher(object):
         if not force and not self.runRequired():
             self.__addLogEntry(_SKIP_TEXT)
             return
-        
+
         today = date.today()
         adding_dir = False
         target = self.dir
@@ -181,7 +176,7 @@ class DateBatcher(object):
             if today not in dated_dirs:
                 os.mkdir(target)
                 adding_dir = True
-                
+
             # Now if we've reached the count limit, delete the oldest directory
             self.removeExcessDirectories()
 
