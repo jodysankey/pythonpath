@@ -61,6 +61,7 @@ class MountedSiteDirectories(object):
                 raise Exception('Failed to mount site at {}'.format(mount))
 
     def __exit__(self, type, value, traceback):
-        for mount in self.mounted:
+        to_unmount = list(self.mounted)
+        for mount in to_unmount:
             if subprocess.call(['umount', mount], stdout=DEVNULL, stderr=DEVNULL) == 0:
                 self.mounted.remove(mount)
