@@ -9,6 +9,7 @@
 
 import os
 import subprocess
+from subprocess import DEVNULL
 
 SITE_BASE_DIR = os.environ["SITEPATH"]
 
@@ -31,19 +32,35 @@ def getStatusReportFile(host_name):
 # using them in parallel, errors will be thrown up to the caller, and we rely on the environment
 # variable being mounted directly. All that said the effect of failure is pretty benign.
 
-def mountSiteDir():
-    """Mount the site directory if it is not currently mounted. Returns a token which may
-    be passed to unmountSiteDir to ensure a symmetric response"""
-    mounts = subprocess.check_output(["mount"]).decode("utf-8").split("\n")
-    if len([m for m in mounts if (" " + SITE_BASE_DIR + " ") in m]) == 0:
-        # Site path not found in mount table, do the mount - this may fail if not root
-        subprocess.check_output(["mount",SITE_BASE_DIR])
-        return True
-    else:
-        return False
+class MountedSiteDirectories(object):
+    """Simple context manager class to mount any unmounted filesystem mounts referencing
+    the site path, then unmount the same set at completion."""
 
-def unmountSiteDir(token):
-    """Unmount the site directory if the token passed from mountSiteDir indicates a mount
-    was performed"""
-    if token is True:
-        subprocess.check_output(["umount",SITE_BASE_DIR])
+    @staticmethod
+    def _defined_mounts():
+        """Returns all the site mountpoints defined in fstab."""
+        lines = subprocess.check_output(['findmnt', '--fstab', '--noheadings', '--list',
+                                         '--output', 'TARGET']).decode('utf-8').split()
+        return set([line for line in lines if line.startswith(SITE_BASE_DIR)])
+
+    @staticmethod
+    def _mounted_mounts():
+        """Returns all the site mountpoints currently mounted."""
+        lines = subprocess.check_output(['findmnt', '--kernel', '--noheadings', '--list',
+                                         '--output', 'TARGET']).decode('utf-8').split()
+        return set([line for line in lines if line.startswith(SITE_BASE_DIR)])
+
+    def __init__(self):
+        self.mounted = set()
+
+    def __enter__(self):
+        for mount in set.difference(self._defined_mounts(), self._mounted_mounts()):
+            if subprocess.call(['mount', mount], stdout=DEVNULL, stderr=DEVNULL) == 0:
+                self.mounted.append(mount)
+            else:
+                raise Exception('Failed to mount site at {}'.format(mount))
+
+    def __exit__(self, type, value, traceback):
+        for mount in self.mounted:
+            if subprocess.call(['umount', mount], stdout=DEVNULL, stderr=DEVNULL) == 0:
+                self.mounted.remove(mount)
