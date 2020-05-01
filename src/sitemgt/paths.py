@@ -56,7 +56,7 @@ class MountedSiteDirectories(object):
     def __enter__(self):
         for mount in set.difference(self._defined_mounts(), self._mounted_mounts()):
             if subprocess.call(['mount', mount], stdout=DEVNULL, stderr=DEVNULL) == 0:
-                self.mounted.append(mount)
+                self.mounted.add(mount)
             else:
                 raise Exception('Failed to mount site at {}'.format(mount))
 
