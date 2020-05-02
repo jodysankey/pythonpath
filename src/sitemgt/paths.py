@@ -14,7 +14,6 @@ from subprocess import DEVNULL
 SITE_BASE_DIR = os.environ["SITEPATH"]
 
 SITE_XML_FILE =  os.path.join(SITE_BASE_DIR, "repo/site/xml/SiteDescription.xml")
-WEB_OUTPUT_DIR = os.path.join(SITE_BASE_DIR, "website/variable")
 CHECK_RESULTS_DIR = os.path.join(SITE_BASE_DIR, "checks")
 CHECK_SRC_DIR = os.path.join(SITE_BASE_DIR, "repo/site/checks")
 CM_WORKING_DIR = os.path.join(SITE_BASE_DIR, "repo")

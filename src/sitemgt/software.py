@@ -15,10 +15,10 @@ import os
 from .general import SiteObject, GOOD, DEGD, FAIL, FAULT, OFF
 
 class Language(SiteObject):
-    """An interpreted language for scripting""" 
+    """An interpreted language for scripting"""
 
     def __init__(self, x_element):
-        """Initialize the object"""      
+        """Initialize the object"""
         SiteObject.__init__(self,x_element,'language')
         self.application_names = []
         for x_app in x_element.findall('Application'):
@@ -34,8 +34,8 @@ class Component(SiteObject):
     _expand_dicts = [['dependencies','deployments']]
 
     def __init__(self, x_element, typename):
-        """Initialize the object"""      
-        # Set basic attributes 
+        """Initialize the object"""
+        # Set basic attributes
         SiteObject.__init__(self,x_element,typename)
         #Initially just store the dependent and relation names; objects will be linked during linkComponentSet
         self.dependencies = {}
@@ -64,7 +64,7 @@ class Component(SiteObject):
     def _crossLink(self, site_description):
         """Initialize references to other non-component objects"""
         # Ask the associated host_set to record each of the deployments we have a location for.
-        # It will handle decomposing to all hosts in a group if necessary 
+        # It will handle decomposing to all hosts in a group if necessary
         for tgt in self._deployment_targets.keys():
             site_description.actors[tgt]._deployComponent(self,self._deployment_targets[tgt])
 
@@ -81,7 +81,7 @@ class Component(SiteObject):
 class RepoApplication(Component):
     """A software application (or set of applications) installed through an online repository system"""
     def __init__(self, x_element):
-        """Initialize the object"""      
+        """Initialize the object"""
         Component.__init__(self, x_element, 'repoapplication')
         if x_element.find('Package') is not None:
             self.package = []
@@ -96,7 +96,7 @@ class RepoApplication(Component):
 class NonRepoApplication(Component):
     """A software application not installed through an online repository system"""
     def __init__(self, x_element):
-        """Initialize the object"""      
+        """Initialize the object"""
         Component.__init__(self, x_element, 'nonrepoapplication')
 
 
@@ -104,7 +104,7 @@ class OtherFile(Component):
     """A miscellaneous file not managed through site CM"""
     _possibleStates = {'Working':GOOD, 'Suspect':FAULT, 'Defective':DEGD}
     def __init__(self, x_element):
-        """Initialize the object"""      
+        """Initialize the object"""
         Component.__init__(self,x_element,'otherfile')
         if self._status is None:
             self._status = 'Working'
@@ -118,7 +118,7 @@ class CmComponent(Component):
     """A software component managed through a CM repository"""
 
     def __init__(self, x_element, typename):
-        """Initialize the object"""      
+        """Initialize the object"""
         # Set basic attributes including CM attributes to default if not explicit in the XML
         if x_element.get('cm_location') is not None and x_element.get('cm_filename') is None:
             self.cm_filename = x_element.get('name')
@@ -132,10 +132,6 @@ class CmComponent(Component):
             self.cm_repository = siteDescription.default_repository
         self.default_repository = (self.cm_repository == siteDescription.default_repository)
 
-    def url(self):
-        #Returns a url for the subversion repository
-        return os.path.join('svn://'+self.cm_repository, self.cm_location, self.cm_filename)
-
 
 class Script(CmComponent):
     """An interpreted software script controlled through CM"""
@@ -144,7 +140,7 @@ class Script(CmComponent):
                        'Suspect':FAULT, 'Defective':DEGD, 'Dead': FAIL }
 
     def __init__(self, x_element):
-        """Initialize the object"""      
+        """Initialize the object"""
         CmComponent.__init__(self, x_element, 'script')
         # Note the language name here gets replaced by an object later (this is a bit sneaky)
         self.language = x_element.get('language')
@@ -152,7 +148,7 @@ class Script(CmComponent):
     def _classLink(self, siteDescription):
         """Initialize references to other component/language objects"""
         CmComponent._classLink(self, siteDescription)
-        # Now set language and any additional dependencies it incurs 
+        # Now set language and any additional dependencies it incurs
         self.language = siteDescription.languages[self.language]
         for app_name in self.language.application_names:
             self._registerDependency(siteDescription.components[app_name])
@@ -166,7 +162,7 @@ class ConfigFile(CmComponent):
     _possibleStates = {'Working':GOOD, 'Suspect':FAULT, 'Defective':DEGD }
 
     def __init__(self, x_element):
-        """Initialize the object"""      
+        """Initialize the object"""
         CmComponent.__init__(self, x_element, 'configfile')
 
     def _setHealthAndStatus(self):
