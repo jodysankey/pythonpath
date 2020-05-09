@@ -143,7 +143,6 @@ COLORS = [
 class ScanError(Exception):
     """An error occurred during scanning."""
     def __init__(self, message):
-        Exception.__init__()
         self.message = message
 
 
