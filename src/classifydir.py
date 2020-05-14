@@ -13,8 +13,6 @@ import hashlib
 import os
 import stat
 
-__author__ = "Jody"
-
 MAGIC_FILE = ".classify"
 
 REQUIRED_SETTINGS = {

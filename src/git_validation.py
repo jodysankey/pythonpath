@@ -25,7 +25,7 @@ def _remote_head(url):
     """Returns a tuple containing the hash of a remote repo's head and an error string,
     exactly one of which will be None."""
     try:
-        output = subprocess.check_output(['git', 'ls-remote', url, 'HEAD'])
+        output = subprocess.check_output(['git', 'ls-remote', url, 'HEAD'], cwd='/')
     except subprocess.CalledProcessError as ex:
         return (None, 'Failed to get hash of remote url, return code: {}'.format(ex.returncode))
     return (output.decode().split()[0], None)
