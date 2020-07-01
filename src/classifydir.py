@@ -121,19 +121,20 @@ class ClassifiedDir(object):
         if not self.is_archive_root():
             raise Exception(self.base_name + ' is not an archive root')
         for descendant in self.descendants():
-            if descendant.archiveRoot() is self:
+            if descendant.archive_root() is self:
                 yield descendant
 
     def total_size(self):
-        """Return total size of directory and all children"""
-        return sum((cd.size for cd in self.descendants())) if self.size else None
+        """Return total size of directory and all children."""
+        return None if self.size is None else sum((cd.size for cd in self.descendants()))
 
     def total_file_count(self):
-        """Return total number of files in the directory and all children"""
-        return sum((cd.file_count for cd in self.descendants())) if self.file_count else None
+        """Return total number of files in the directory and all children."""
+        return (None if self.file_count is None
+                else sum((cd.file_count for cd in self.descendants())))
 
     def archive_root(self):
-        """Return the classified dir at the root of this archive, or None if not archived"""
+        """Return the classified dir at the root of this archive, or None if not archived."""
         if self._status == 'undefined' or self.volume == 'none':
             return None
         elif self._status == 'implicit':
@@ -246,7 +247,7 @@ class ClassifiedDir(object):
 
 def _parse_line(line):
     """If line is in the form Tag=value[#Comment] returns a (tag, value)
-    tuple, otherwise returns None"""
+    tuple, otherwise returns None."""
     non_comment = line.split('#')[0].strip()
     if len(non_comment) > 0:
         tag_value = [x.strip() for x in non_comment.split('=')]
@@ -255,6 +256,7 @@ def _parse_line(line):
         return (tag_value[0], tag_value[1])
     else:
         return None
+
 
 def _string_bool(value):
     """Returns a matching boolean if the input is true or false, else no change."""

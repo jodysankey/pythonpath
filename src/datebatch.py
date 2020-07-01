@@ -1,26 +1,19 @@
 #========================================================
-# DateBatch.py
-#========================================================
 # PublicPermissions: True
 #========================================================
-# DateBatcher class to call specified functions at date
-# based intervals, equivalent to DateBatch.exe
-#========================================================
 
-#Imports
+""" DateBatcher class to call specified functions at date based intervals,
+equivalent to DateBatch.exe"""
+
 import os
 import re
 import shutil
 from datetime import date, datetime
 
-__author__="Jody"
-__date__ ="$13/09/2009 7:27:58 PM$"
-
-_GOOD_TEXT  = "RUN    "
+_GOOD_TEXT = "RUN    "
 _FORCE_TEXT = "FORCE  "
-_FAIL_TEXT  = "FAIL   "
-_SKIP_TEXT  = " -     "
-
+_FAIL_TEXT = "FAIL   "
+_SKIP_TEXT = " -     "
 
 
 class DateBatcher(object):
@@ -40,7 +33,7 @@ class DateBatcher(object):
 
 
 
-    def setUsingDir(self,dir,spacing,count,function,log=""):
+    def setUsingDir(self, dir, spacing, count, function, log=""):
         """Initialize class to create dated subdirectories within dir.
 
         Dir      -- Parent directory for dated subdirectories
@@ -56,7 +49,7 @@ class DateBatcher(object):
         self.function = function
         self.dirMode = True
 
-    def setUsingLog(self,dir,spacing,function,log):
+    def setUsingLog(self, dir, spacing, function, log):
         """Initialize class to execute based on runs in a log.
 
         Dir      -- Directory passed to function
@@ -74,11 +67,11 @@ class DateBatcher(object):
 
     def validate(self):
         """Throw an exception if the instance variables are not valid"""
-        if self.count<1 or self.spacing<1:
+        if self.count < 1 or self.spacing < 1:
             raise AttributeError
-        if len(self.dir)<1:
+        if len(self.dir) < 1:
             raise AttributeError
-        if not self.function or not hasattr(self.function,'__call__'):
+        if not self.function or not hasattr(self.function, '__call__'):
             raise AttributeError
 
 
@@ -89,14 +82,14 @@ class DateBatcher(object):
 
         if self.dirMode:
             dated_dirs = self.__datedDirs()
-            if len(dated_dirs)>0:
+            if len(dated_dirs) > 0:
                 return dated_dirs[0]
         elif os.path.isfile(self.log):
-            for line in open(self.log,"r"):
-                if(line.startswith((_GOOD_TEXT,_FORCE_TEXT))):
-                    mo = re.search(r"(\d{4})-(\d{2})-(\d{2})",line)
-                    if mo is not None:
-                        last_date = date(*[int(x) for x in mo.groups()])
+            for line in open(self.log, "r"):
+                if line.startswith((_GOOD_TEXT, _FORCE_TEXT)):
+                    match = re.search(r"(\d{4})-(\d{2})-(\d{2})", line)
+                    if match is not None:
+                        last_date = date(*[int(x) for x in match.groups()])
 
         return last_date
 
@@ -106,7 +99,7 @@ class DateBatcher(object):
         self.validate()
         last_success = self.lastSuccess()
         today = date.today()
-        return (last_success == None or (today-last_success).days >= self.spacing)
+        return last_success is None or (today - last_success).days >= self.spacing
 
 
     def removeExcessDirectories(self):
@@ -126,7 +119,7 @@ class DateBatcher(object):
         """Perform the run, but only if required"""
         self.__execute(False)
 
-        if len(self.dir)<1:
+        if len(self.dir) < 1:
             raise AttributeError
 
 
@@ -138,18 +131,18 @@ class DateBatcher(object):
 
         dated_dirs = []
         for string in os.listdir(self.dir):
-                mo = re.search(r"(\d{4})-(\d{2})-(\d{2})",string)
-                if mo is not None:
-                    dated_dirs.append(date(*[int(x) for x in mo.groups()]))
+            match = re.search(r"(\d{4})-(\d{2})-(\d{2})", string)
+            if match is not None:
+                dated_dirs.append(date(*[int(x) for x in match.groups()]))
         dated_dirs.sort()
         dated_dirs.reverse()
         return dated_dirs
 
 
-    def __addLogEntry(self,summary,reason=None):
+    def __addLogEntry(self, summary, reason=None):
         """Add an line starting with summary to the log, if it was set"""
-        if(self.log):
-            log_file = open(self.log,"a+")
+        if self.log:
+            log_file = open(self.log, "a+")
             line = summary + datetime.now().isoformat()
             if reason:
                 line += " ("+reason+")"
@@ -158,7 +151,7 @@ class DateBatcher(object):
 
 
     def __execute(self, force):
-        """Perform the mechanics or a run, if required or if told to force"""
+        """Perform the mechanics of a run, if required or if told to force"""
         self.validate()
         if not force and not self.runRequired():
             self.__addLogEntry(_SKIP_TEXT)
@@ -169,7 +162,6 @@ class DateBatcher(object):
         target = self.dir
 
         if self.dirMode:
-
             target += "/" + today.isoformat()
             dated_dirs = self.__datedDirs()
             # Create today's directory if necessary
@@ -184,10 +176,12 @@ class DateBatcher(object):
         # we just created it but the function failed
         try:
             self.function(target)
-        except Exception as e:
-            self.__addLogEntry(_FAIL_TEXT,str(e))
+        except Exception as ex:
+            self.__addLogEntry(_FAIL_TEXT, str(ex))
             if adding_dir:
                 shutil.rmtree(target)
         else:
-            if force:   self.__addLogEntry(_FORCE_TEXT)
-            else:       self.__addLogEntry(_GOOD_TEXT)
+            if force:
+                self.__addLogEntry(_FORCE_TEXT)
+            else:
+                self.__addLogEntry(_GOOD_TEXT)

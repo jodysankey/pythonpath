@@ -1,14 +1,11 @@
-#========================================================
-# scan_core.py
-#========================================================
-# PublicPermissions: True
-#========================================================
-# Python module for linux to make and scale scans.
-# Relies on scanimage (SANE) for the scanning and
-# ImageMagick for the image manipulation. Most of this is
-# really pretty old.
+"""Module for linux to make and scale scans. Relies on scanimage
+(SANE) for the scanning and ImageMagick for the image manipulation.
+Most of this is really pretty old."""
+
 #========================================================
 # Copyright Jody M Sankey 2010 - 2018
+#========================================================
+# PublicPermissions: True
 #========================================================
 
 import sys
@@ -23,7 +20,6 @@ import collections
 # Define constants
 SCAN_PATH = os.path.expanduser("~/tmp/scan")
 SCAN_NAME = "scan_"
-RECENT_SECONDS = 3600
 
 # Gamma4SI arguments are: gamma, floor, ceiling, table_size
 GAMMA_TABLE = subprocess.check_output(
@@ -264,20 +260,24 @@ def get_start_scan_index(dest, file_type):
     return start_num
 
 
-def batch_scan_image(base_command, start_num):
+def batch_scan_image(base_command, start_num, debug=False):
     """Calls the scanimage command given by base_command in batch scan mode
-    beginning at start_num and checks the return code"""
+    beginning at start_num and checks the return code."""
     full_command = (base_command + " --batch='{}/{}%03d.tif' --batch-start={}".format(
         SCAN_PATH, SCAN_NAME, start_num))
+    if debug:
+        print('RUNNING: ' + full_command)
     ret = subprocess.call(full_command, shell=True)
     if ret and ret != 7: #Error 7 is out of documents when doing a batch feed
         raise ScanError("ERROR {} calling scanimage".format(ret))
 
 
-def single_scan_image(command, num):
+def single_scan_image(command, num, debug=False):
     """Calls the scanimage command given by base_command in single scan mode for
     index num, checks the return code, and returns the filename"""
     scan_file = scan_file_name(num)
+    if debug:
+        print('RUNNING: ' + command)
     ret = subprocess.call("{} > '{}'".format(command, scan_file), shell=True)
     if ret:
         raise ScanError("ERROR {} calling scanimage".format(ret))
@@ -288,7 +288,7 @@ def scan_file_name(index):
     return "{0}/{1}{2:0>3}.tif".format(SCAN_PATH, SCAN_NAME, index)
 
 
-def acquire_scans(customizations, scan_start_index, output_start_index):
+def acquire_scans(customizations, scan_start_index, output_start_index, debug=False):
     """Runs an external command to acquire a set of scans and returns:
     1. A list of filenames,
     2. A dictionary of whether invertion is required for each filename
@@ -304,7 +304,7 @@ def acquire_scans(customizations, scan_start_index, output_start_index):
     error = None
     if mode == 'driver':
         try:
-            batch_scan_image(command, scan_start_index)
+            batch_scan_image(command, scan_start_index, debug=debug)
         except ScanError as err:
             print("Caught scan error during scan, continuing to process remaining images")
             error = err
@@ -328,7 +328,7 @@ def acquire_scans(customizations, scan_start_index, output_start_index):
         print("Load the document front side of first sheet up")
         start_index_front = scan_start_index
         try:
-            batch_scan_image(command, start_index_front)
+            batch_scan_image(command, start_index_front, debug=debug)
         except ScanError as err:
             print("Caught scan error during scan, continuing to process remaining images")
             error = err
@@ -343,7 +343,7 @@ def acquire_scans(customizations, scan_start_index, output_start_index):
             input('Load the document back side of last page up then press enter')
             start_index_back = end_index_front + 1
             try:
-                batch_scan_image(command, start_index_back)
+                batch_scan_image(command, start_index_back, debug=debug)
             except ScanError as err:
                 print("Caught scan error during scan, continuing to process remaining images")
                 error = err
@@ -363,7 +363,7 @@ def acquire_scans(customizations, scan_start_index, output_start_index):
         out = output_start_index
         try:
             while True:
-                scans.append(single_scan_image(command, num))
+                scans.append(single_scan_image(command, num, debug))
                 index_map[scan_file_name(num)] = out
                 # Optionally could beep() here
                 answer = input('Return to scan another or any other key to stop: ')
@@ -443,7 +443,8 @@ def renumber_existing_files(dest, num_digits, extention, start_page):
             os.rename(fmt.format(num), output_format.format(num))
 
 
-def convert_scans(scans, invertion_map, index_map, customizations, dest, extention, num_digits):
+def convert_scans(scans, invertion_map, index_map, customizations, dest, extention, num_digits,
+                  debug=False):
     """Convert a set of raw scans into the desired output format and filename."""
     outputs = []
     for scan_file in scans:
@@ -463,8 +464,9 @@ def convert_scans(scans, invertion_map, index_map, customizations, dest, extenti
             "-rotate 180" if invertion_map[scan_file] else "",
             " ".join(customizations.convert_flags(is_color)),
             new_file)
-        #print(command)
 
+        if debug:
+            print('RUNNING: ' + command)
         ret_val = subprocess.call(command, shell=True)
         if ret_val != 0 and not os.path.exists(new_file):
             print("WARNING: Could not convert {} (error code: {})".format(scan_file, ret_val))
@@ -479,9 +481,8 @@ def convert_scans(scans, invertion_map, index_map, customizations, dest, extenti
     return outputs
 
 
-def scan_and_convert(dest, customizations, view, check, kills):
+def scan_and_convert(dest, customizations, view, check, kills, debug):
     """Do the bulk of the work to execute scans and convert"""
-
     file_type = customizations.first_value("file_type")
     output_start_page = get_start_output_page(dest, file_type)
     scan_start_index = get_start_scan_index(dest, file_type)
@@ -494,7 +495,7 @@ def scan_and_convert(dest, customizations, view, check, kills):
 
     # Do the scanning and remove unwanted pages
     scans, invertion_map, index_map, error = acquire_scans(
-        customizations, scan_start_index, output_start_page)
+        customizations, scan_start_index, output_start_page, debug=debug)
     scans = remove_killed_files(scans, kills, index_map)
     if check:
         scans = remove_unwanted_files(scans, index_map)
@@ -508,7 +509,7 @@ def scan_and_convert(dest, customizations, view, check, kills):
 
     # Do the conversion
     outputs = convert_scans(
-        scans, invertion_map, index_map, customizations, dest, file_type, num_digits)
+        scans, invertion_map, index_map, customizations, dest, file_type, num_digits, debug=debug)
 
     # Display a warning if an error occured
     if error is not None:
@@ -520,8 +521,19 @@ def scan_and_convert(dest, customizations, view, check, kills):
             subprocess.call("display -resize 25% '{}' &".format(output), shell=True)
 
 
-def perform_scan(dest, source, paper, scale, color, view, check, kills):
-    """Executes a scan using the supplied user inputs."""
+def perform_scan(dest, source, paper, scale, color, kills=[], view=False, check=False, debug=False):
+    """Executes a scan using the supplied user inputs.
+
+    dest - The destination file prefix.
+    source - One of the paper source enumerations.
+    paper - One of the paper size enumerations.
+    scale - One of the output scale enumerations.
+    color - One of the output color enumerations.
+    kills - List out scan indexes to delete without saving.
+    view - True to display the output files in addition to saving.
+    check - True to ask whether to keep each scan before saving.
+    debug - True to display command line invokations.
+    """
     # Parse each customization from the supplied string
     customizations = CustomizationSet()
     customizations.append(Customization("Source", find_option_or_die(SOURCES, source)))
@@ -529,4 +541,4 @@ def perform_scan(dest, source, paper, scale, color, view, check, kills):
     customizations.append(Customization("Scale", find_option_or_die(SCALES, scale)))
     customizations.append(Customization("Color", find_option_or_die(COLORS, color)))
     # Call the function
-    scan_and_convert(dest, customizations, view, check, kills)
+    scan_and_convert(dest, customizations, kills=kills, view=view, check=check, debug=debug)
