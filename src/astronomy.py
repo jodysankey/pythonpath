@@ -14,7 +14,7 @@ buy it."""
 
 from datetime import datetime, date, time, timedelta
 from math import sin, cos, tan, asin, acos, atan2, pi, floor
-from dateutil import tz 
+from dateutil import tz
 from scipy import interpolate
 
 # In many case we wish to use standard abbreviations that contain capitals or are less than
@@ -273,202 +273,202 @@ R4 = (( 4, 2.56, 6283.08 ),)
 
 # Moon position data.
 
-arguments_LR = ( 
-  ( 0, 0,  1,  0 ),
-  ( 2, 0,  -1, 0 ),
-  ( 2, 0,  0,  0 ),
-  ( 0, 0,  2,  0 ),
-  ( 0, 1,  0,  0 ),
-  ( 0, 0,  0,  2 ),
-  ( 2, 0,  -2, 0 ),
-  ( 2, -1, -1, 0 ),
-  ( 2, 0,  1,  0 ),
-  ( 2, -1, 0,  0 ),
-  ( 0, 1,  -1, 0 ),
-  ( 1, 0,  0,  0 ),
-  ( 0, 1,  1,  0 ),
-  ( 2, 0,  0,  -2 ),
-  ( 0, 0,  1,  2 ),
-  ( 0, 0,  1,  -2 ),
-  ( 4, 0,  -1, 0 ),
-  ( 0, 0,  3,  0 ),
-  ( 4, 0,  -2, 0 ),
-  ( 2, 1,  -1, 0 ),
-  ( 2, 1,  0,  0 ),
-  ( 1, 0,  -1, 0 ),
-  ( 1, 1,  0,  0 ),
-  ( 2, -1, 1,  0 ),
-  ( 2, 0,  2,  0 ),
-  ( 4, 0,  0,  0 ),
-  ( 2, 0,  -3, 0 ),
-  ( 0, 1,  -2, 0 ),
-  ( 2, 0,  -1, 2 ),
-  ( 2, -1, -2, 0 ),
-  ( 1, 0,  1,  0 ),
-  ( 2, -2, 0,  0 ),
-  ( 0, 1,  2,  0 ),
-  ( 0, 2,  0,  0 ),
-  ( 2, -2, -1, 0 ),
-  ( 2, 0,  1,  -2 ),
-  ( 2, 0,  0,  2 ),
-  ( 4, -1, -1, 0 ),
-  ( 0, 0,  2,  2 ),
-  ( 3, 0,  -1, 0 ),
-  ( 2, 1,  1,  0 ),
-  ( 4, -1, -2, 0 ),
-  ( 0, 2,  -1, 0 ),
-  ( 2, 2,  -1, 0 ),
-  ( 2, 1,  -2, 0 ),
-  ( 2, -1, 0,  -2 ),
-  ( 4, 0,  1,  0 ),
-  ( 0, 0,  4,  0 ),
-  ( 4, -1, 0,  0 ),
-  ( 1, 0,  -2, 0 ),
-  ( 2, 1,  0,  -2 ),
-  ( 0, 0,  2,  -2 ),
-  ( 1, 1,  1,  0 ),
-  ( 3, 0,  -2, 0 ),
-  ( 4, 0,  -3, 0 ),
-  ( 2, -1, 2,  0 ),
-  ( 0, 2,  1,  0 ),
-  ( 1, 1,  -1, 0 ),
-  ( 2, 0,  3,  0 ),
-  ( 2, 0,  -1, -2 )
-)
-   
-coefficients_LR = ( 
-  ( 6288774,  -20905355 ),
-  ( 1274027,  -3699111 ),
-  ( 658314,   -2955968 ),
-  ( 213618,   -569925 ),
-  ( -185116,  48888 ),
-  ( -114332,  -3149 ),
-  ( 58793,    246158 ),
-  ( 57066,    -152138 ),
-  ( 53322,    -170733 ),
-  ( 45758,    -204586 ),
-  ( -40923,   -129620 ),
-  ( -34720,   108743 ),
-  ( -30383,   104755 ),
-  ( 15327,    10321 ),
-  ( -12528,   0 ),
-  ( 10980,    79661 ),
-  ( 10675,    -34782 ),
-  ( 10034,    -23210 ),
-  ( 8548,     -21636 ),
-  ( -7888,    24208 ),
-  ( -6766,    30824 ),
-  ( -5163,    -8379 ),
-  ( 4987,     -16675 ),
-  ( 4036,     -12831 ),
-  ( 3994,     -10445 ),
-  ( 3861,     -11650 ),
-  ( 3665,     14403 ),
-  ( -2689,    -7003 ),
-  ( -2602,    0 ), 
-  ( 2390,     10056 ),
-  ( -2348,    6322 ),
-  ( 2236,     -9884 ),
-  ( -2120,    5751 ),
-  ( -2069,    0 ),
-  ( 2048,     -4950 ),
-  ( -1773,    4130 ),
-  ( -1595,    0 ),
-  ( 1215,     -3958 ),
-  ( -1110,    0 ),
-  ( -892,     3258 ),
-  ( -810,     2616 ),
-  ( 759,     -1897 ),
-  ( -713,     -2117 ),
-  ( -700,     2354 ),
-  ( 691,      0 ),
-  ( 596,      0 ),
-  ( 549,      -1423 ),
-  ( 537,      -1117 ),
-  ( 520,      -1571 ),
-  ( -487,     -1739 ),
-  ( -399,     0 ),
-  ( -381,     -4421 ),
-  ( 351,      0 ),
-  ( -340,     0 ),
-  ( 330,      0 ) ,
-  ( 327,      0 ),
-  ( -323,     1165 ),
-  ( 299,      0 ),
-  ( 294,      0 ),
-  ( 0,        8752 )
+arguments_LR = (
+    ( 0, 0,  1,  0 ),
+    ( 2, 0,  -1, 0 ),
+    ( 2, 0,  0,  0 ),
+    ( 0, 0,  2,  0 ),
+    ( 0, 1,  0,  0 ),
+    ( 0, 0,  0,  2 ),
+    ( 2, 0,  -2, 0 ),
+    ( 2, -1, -1, 0 ),
+    ( 2, 0,  1,  0 ),
+    ( 2, -1, 0,  0 ),
+    ( 0, 1,  -1, 0 ),
+    ( 1, 0,  0,  0 ),
+    ( 0, 1,  1,  0 ),
+    ( 2, 0,  0,  -2 ),
+    ( 0, 0,  1,  2 ),
+    ( 0, 0,  1,  -2 ),
+    ( 4, 0,  -1, 0 ),
+    ( 0, 0,  3,  0 ),
+    ( 4, 0,  -2, 0 ),
+    ( 2, 1,  -1, 0 ),
+    ( 2, 1,  0,  0 ),
+    ( 1, 0,  -1, 0 ),
+    ( 1, 1,  0,  0 ),
+    ( 2, -1, 1,  0 ),
+    ( 2, 0,  2,  0 ),
+    ( 4, 0,  0,  0 ),
+    ( 2, 0,  -3, 0 ),
+    ( 0, 1,  -2, 0 ),
+    ( 2, 0,  -1, 2 ),
+    ( 2, -1, -2, 0 ),
+    ( 1, 0,  1,  0 ),
+    ( 2, -2, 0,  0 ),
+    ( 0, 1,  2,  0 ),
+    ( 0, 2,  0,  0 ),
+    ( 2, -2, -1, 0 ),
+    ( 2, 0,  1,  -2 ),
+    ( 2, 0,  0,  2 ),
+    ( 4, -1, -1, 0 ),
+    ( 0, 0,  2,  2 ),
+    ( 3, 0,  -1, 0 ),
+    ( 2, 1,  1,  0 ),
+    ( 4, -1, -2, 0 ),
+    ( 0, 2,  -1, 0 ),
+    ( 2, 2,  -1, 0 ),
+    ( 2, 1,  -2, 0 ),
+    ( 2, -1, 0,  -2 ),
+    ( 4, 0,  1,  0 ),
+    ( 0, 0,  4,  0 ),
+    ( 4, -1, 0,  0 ),
+    ( 1, 0,  -2, 0 ),
+    ( 2, 1,  0,  -2 ),
+    ( 0, 0,  2,  -2 ),
+    ( 1, 1,  1,  0 ),
+    ( 3, 0,  -2, 0 ),
+    ( 4, 0,  -3, 0 ),
+    ( 2, -1, 2,  0 ),
+    ( 0, 2,  1,  0 ),
+    ( 1, 1,  -1, 0 ),
+    ( 2, 0,  3,  0 ),
+    ( 2, 0,  -1, -2 )
 )
 
-arguments_B = ( 
-  ( 0, 0,  0,  1  ),
-  ( 0, 0,  1,  1  ),
-  ( 0, 0,  1,  -1  ),
-  ( 2, 0,  0,  -1  ),
-  ( 2, 0,  -1, 1  ),
-  ( 2, 0,  -1, -1 ),
-  ( 2, 0,  0,  1  ),
-  ( 0, 0,  2,  1 ),
-  ( 2, 0,  1,  -1  ),
-  ( 0, 0,  2,  -1 ),
-  ( 2, -1, 0,  -1 ),
-  ( 2, 0,  -2, -1 ),
-  ( 2, 0,  1,  1 ),
-  ( 2, 1,  0,  -1  ),
-  ( 2, -1, -1, 1 ),
-  ( 2, -1, 0,  1  ),
-  ( 2, -1, -1, -1  ),
-  ( 0, 1,  -1, -1 ),
-  ( 4, 0,  -1, -1  ) ,
-  ( 0, 1,  0,  1  ),
-  ( 0, 0,  0,  3 ),
-  ( 0, 1,  -1, 1  ),
-  ( 1, 0,  0,  1 ),
-  ( 0, 1,  1,  1,  ),
-  ( 0, 1,  1,  -1  ),
-  ( 0, 1,  0,  -1  ),
-  ( 1, 0,  0,  -1  ),
-  ( 0, 0,  3,  1  ),
-  ( 4, 0,  0,  -1  ),
-  ( 4, 0,  -1, 1, ),
-  ( 0, 0,  1,  -3 ),
-  ( 4, 0,  -2, 1  ),
-  ( 2, 0,  0,  -3 ),
-  ( 2, 0,  2,  -1 ),
-  ( 2, -1, 1,  -1 ),
-  ( 2, 0,  -2, 1  ),
-  ( 0, 0,  3,  -1 ),
-  ( 2, 0,  2,  1  ),
-  ( 2, 0,  -3, -1 ),
-  ( 2, 1,  -1, 1  ),
-  ( 2, 1,  0,  1  ),
-  ( 4, 0,  0,  1  ),
-  ( 2, -1, 1,  1  ),
-  ( 2, -2, 0,  -1 ),
-  ( 0, 0,  1,  3  ),
-  ( 2, 1,  1,  -1 ),
-  ( 1, 1,  0,  -1 ),
-  ( 1, 1,  0,  1  ),
-  ( 0, 1,  -2, -1 ),
-  ( 2, 1,  -1, -1 ),
-  ( 1, 0,  1,  1  ),
-  ( 2, -1, -2, -1 ),
-  ( 0, 1,  2,  1  ),
-  ( 4, 0,  -2, -1 ),
-  ( 4, -1, -1, -1 ),
-  ( 1, 0,  1,  -1 ),
-  ( 4, 0,  1,  -1 ),
-  ( 1, 0,  -1, -1 ),
-  ( 4, -1, 0,  -1 ),
-  ( 2, -2, 0,  1  ),
+coefficients_LR = (
+    ( 6288774,  -20905355 ),
+    ( 1274027,  -3699111 ),
+    ( 658314,   -2955968 ),
+    ( 213618,   -569925 ),
+    ( -185116,  48888 ),
+    ( -114332,  -3149 ),
+    ( 58793,    246158 ),
+    ( 57066,    -152138 ),
+    ( 53322,    -170733 ),
+    ( 45758,    -204586 ),
+    ( -40923,   -129620 ),
+    ( -34720,   108743 ),
+    ( -30383,   104755 ),
+    ( 15327,    10321 ),
+    ( -12528,   0 ),
+    ( 10980,    79661 ),
+    ( 10675,    -34782 ),
+    ( 10034,    -23210 ),
+    ( 8548,     -21636 ),
+    ( -7888,    24208 ),
+    ( -6766,    30824 ),
+    ( -5163,    -8379 ),
+    ( 4987,     -16675 ),
+    ( 4036,     -12831 ),
+    ( 3994,     -10445 ),
+    ( 3861,     -11650 ),
+    ( 3665,     14403 ),
+    ( -2689,    -7003 ),
+    ( -2602,    0 ),
+    ( 2390,     10056 ),
+    ( -2348,    6322 ),
+    ( 2236,     -9884 ),
+    ( -2120,    5751 ),
+    ( -2069,    0 ),
+    ( 2048,     -4950 ),
+    ( -1773,    4130 ),
+    ( -1595,    0 ),
+    ( 1215,     -3958 ),
+    ( -1110,    0 ),
+    ( -892,     3258 ),
+    ( -810,     2616 ),
+    ( 759,     -1897 ),
+    ( -713,     -2117 ),
+    ( -700,     2354 ),
+    ( 691,      0 ),
+    ( 596,      0 ),
+    ( 549,      -1423 ),
+    ( 537,      -1117 ),
+    ( 520,      -1571 ),
+    ( -487,     -1739 ),
+    ( -399,     0 ),
+    ( -381,     -4421 ),
+    ( 351,      0 ),
+    ( -340,     0 ),
+    ( 330,      0 ) ,
+    ( 327,      0 ),
+    ( -323,     1165 ),
+    ( 299,      0 ),
+    ( 294,      0 ),
+    ( 0,        8752 )
+)
+
+arguments_B = (
+    ( 0, 0,  0,  1  ),
+    ( 0, 0,  1,  1  ),
+    ( 0, 0,  1,  -1  ),
+    ( 2, 0,  0,  -1  ),
+    ( 2, 0,  -1, 1  ),
+    ( 2, 0,  -1, -1 ),
+    ( 2, 0,  0,  1  ),
+    ( 0, 0,  2,  1 ),
+    ( 2, 0,  1,  -1  ),
+    ( 0, 0,  2,  -1 ),
+    ( 2, -1, 0,  -1 ),
+    ( 2, 0,  -2, -1 ),
+    ( 2, 0,  1,  1 ),
+    ( 2, 1,  0,  -1  ),
+    ( 2, -1, -1, 1 ),
+    ( 2, -1, 0,  1  ),
+    ( 2, -1, -1, -1  ),
+    ( 0, 1,  -1, -1 ),
+    ( 4, 0,  -1, -1  ) ,
+    ( 0, 1,  0,  1  ),
+    ( 0, 0,  0,  3 ),
+    ( 0, 1,  -1, 1  ),
+    ( 1, 0,  0,  1 ),
+    ( 0, 1,  1,  1,  ),
+    ( 0, 1,  1,  -1  ),
+    ( 0, 1,  0,  -1  ),
+    ( 1, 0,  0,  -1  ),
+    ( 0, 0,  3,  1  ),
+    ( 4, 0,  0,  -1  ),
+    ( 4, 0,  -1, 1, ),
+    ( 0, 0,  1,  -3 ),
+    ( 4, 0,  -2, 1  ),
+    ( 2, 0,  0,  -3 ),
+    ( 2, 0,  2,  -1 ),
+    ( 2, -1, 1,  -1 ),
+    ( 2, 0,  -2, 1  ),
+    ( 0, 0,  3,  -1 ),
+    ( 2, 0,  2,  1  ),
+    ( 2, 0,  -3, -1 ),
+    ( 2, 1,  -1, 1  ),
+    ( 2, 1,  0,  1  ),
+    ( 4, 0,  0,  1  ),
+    ( 2, -1, 1,  1  ),
+    ( 2, -2, 0,  -1 ),
+    ( 0, 0,  1,  3  ),
+    ( 2, 1,  1,  -1 ),
+    ( 1, 1,  0,  -1 ),
+    ( 1, 1,  0,  1  ),
+    ( 0, 1,  -2, -1 ),
+    ( 2, 1,  -1, -1 ),
+    ( 1, 0,  1,  1  ),
+    ( 2, -1, -2, -1 ),
+    ( 0, 1,  2,  1  ),
+    ( 4, 0,  -2, -1 ),
+    ( 4, -1, -1, -1 ),
+    ( 1, 0,  1,  -1 ),
+    ( 4, 0,  1,  -1 ),
+    ( 1, 0,  -1, -1 ),
+    ( 4, -1, 0,  -1 ),
+    ( 2, -2, 0,  1  ),
 )
 
 coefficients_B = (
-  5128122, 280602,  277693,  173237,  55413,   46271,   32573,   17198,   9266,    8822,
-  8216,    4324,    4200,    -3359,   2463,    2211,    2065,    -1870,   1828,    -1794,
-  -1749,   -1565,   -1491,   -1475,   -1410,   -1344,   -1335,   1107,    1021,    833,
-  777,     671,     607,     596,     491,     -451,    439,     422,     421,     -366,  
-  -351,    331,     315,     302,     -283,    -229,    223,     223,     -220,    -220,
-  -185,    181,     -177,    176,     166,     -164,    132,     -119,    115,     107,  
+    5128122, 280602,  277693,  173237,  55413,   46271,   32573,   17198,   9266,    8822,
+    8216,    4324,    4200,    -3359,   2463,    2211,    2065,    -1870,   1828,    -1794,
+    -1749,   -1565,   -1491,   -1475,   -1410,   -1344,   -1335,   1107,    1021,    833,
+    777,     671,     607,     596,     491,     -451,    439,     422,     421,     -366,
+    -351,    331,     315,     302,     -283,    -229,    223,     223,     -220,    -220,
+    -185,    181,     -177,    176,     166,     -164,    132,     -119,    115,     107,
 )
 
 
@@ -482,12 +482,12 @@ def ut_to_datetime(ut):
     """Convert a universal time in days to a UTC datetime.datetime object."""
     days_after_origin = ut - JD_OFFSET
     return (datetime.combine(date.fromordinal(floor(days_after_origin)), time.min, tzinfo=tz.UTC)
-        + timedelta(days=1) * (days_after_origin % 1.0))
+            + timedelta(days=1) * (days_after_origin % 1.0))
 
 
-def datetime_to_ut(datetime):
+def datetime_to_ut(datetime_object):
     """Convert a tzaware datetime.datetime object to a universal time in days."""
-    utc = datetime.astimezone(tz.UTC)
+    utc = datetime_object.astimezone(tz.UTC)
     days = utc.date().toordinal()
     fraction = (utc - datetime.combine(utc.date(), time.min, tz.UTC)) / timedelta(days=1)
     return JD_OFFSET + days + fraction
@@ -551,14 +551,14 @@ class SphericalCoordinate:
         self.lat = latitude
         self.lng = longitude
         self.rng = range_km
-    
+
     def to_equatorial(self, epsilon):
         """Returns a corresponding EquatorialCoordinate, given the obliquity (epsilon)
         from a nutation calculation."""
         ra = atan2(sin(self.lng) * cos(epsilon) - tan(self.lat) * sin(epsilon), cos(self.lng))
         decl = asin(sin(self.lat) * cos(epsilon) + cos(self.lat) * sin(epsilon) * sin(self.lng))
         return EquatorialCoordinate(ra, decl)
-   
+
 
 class EquatorialCoordinate:
     """An equatorial coordinate, expressed as declination and right ascension in radians."""
@@ -618,7 +618,7 @@ class Body:
         events = self._events_from_positions(eq_positions, first_midnight, observer)
         # Convert into datetimes.
         return [(ut_to_datetime(event[0]), event[1]) for event in events]
- 
+
 
     def _events_from_positions(self, equatorial_positions, start_midnight, observer):
         """Given a list of equatorial positions for the body on sequential midnights in UT, starting
@@ -740,7 +740,7 @@ class Sun(Body):
 
         ecliptic = SphericalCoordinate(latitude, longitude, range_km=R * ONE_AU_IN_KM)
         return (ecliptic, ecliptic.to_equatorial(epsilon))
- 
+
 
 class Moon(Body):
     """Calucations for the position and phase of the moon."""
@@ -756,7 +756,7 @@ class Moon(Body):
         T = (dt - 2451545.0)/36525.0
         # Moon's mean longitude.
         Ldash = ((218.3164477 + 481267.88123421 * T - 0.0015786 * T**2 + T**3 / 538841.0
-                 - T**4 / 65194000.0) * DEG_TO_RAD) % TWO_PI
+                  - T**4 / 65194000.0) * DEG_TO_RAD) % TWO_PI
         # Mean elongation of the moon.
         D = ((297.8501921 + 445267.1114034 * T - 0.0018819 * T**2 + T**3 / 545868.0
               - T**4 / 113065000.0) * DEG_TO_RAD) % TWO_PI
@@ -771,7 +771,7 @@ class Moon(Body):
               - T**3 / 3526000.0 + T**4 / 863310000.0) * DEG_TO_RAD) % TWO_PI
         # Eccentricity of earth's orbit
         E = 1.0 - 0.002516 * T - 0.0000074 * T**2
-    
+
         # Add up coefficients for corrections to longitude and distance
         sigmaL = sigmaR = 0.0
         for arg_LR, coef_LR in zip(arguments_LR, coefficients_LR):
@@ -779,14 +779,14 @@ class Moon(Body):
             coef_fac = pow(E, abs(arg_LR[1]))
             sigmaL += coef_fac * coef_LR[0] * sin(arg)
             sigmaR += coef_fac * coef_LR[1] * cos(arg)
-    
+
         # Add up coefficients for corrections to latitude
         sigmaB = 0.0
         for arg_B, coef_B in zip(arguments_B, coefficients_B):
             arg = arg_B[0] * D + arg_B[1] * M + arg_B[2] * Mdash + arg_B[3] * F
             coef_fac = pow(E, abs(arg_B[1]))
-            sigmaB += coef_fac * coef_B * sin(arg);
-    
+            sigmaB += coef_fac * coef_B * sin(arg)
+
         # Now add the corrections due to the planets
         a1 = ((119.75 + 131.849 * T) * DEG_TO_RAD) % TWO_PI
         a2 = ((53.09 + 479264.290 * T) * DEG_TO_RAD) % TWO_PI
@@ -794,7 +794,7 @@ class Moon(Body):
         sigmaL += 3958.0 * sin(a1) + 1962.0 * sin(Ldash - F) + 318.0 * sin(a2)
         sigmaB += (-2235.0 * sin(Ldash) + 382.0 * sin(a3) + 175.0 * sin(a1 - F)
                    + 175.0 * sin(a1 + F) + 127.0 * sin(Ldash - Mdash) - 115.0 * sin(Ldash + Mdash))
-    
+
         # Get the coordinates in ecliptic.
         latitude = sigmaB / 1000000.0 * DEG_TO_RAD
         longitude = Ldash + sigmaL / 1000000.0 * DEG_TO_RAD
@@ -806,13 +806,13 @@ class Moon(Body):
 
         ecliptic = SphericalCoordinate(latitude, longitude, range_km=range_km)
         return (ecliptic, ecliptic.to_equatorial(epsilon))
-    
 
-    def phase(self, datetime):
+
+    def phase(self, datetime_object):
         """Returns moon phase information for the specified timezone aware datetime object as a
         tuple (phase angle in radians, phase description, fraction illuminated)."""
         # pp345 Astronomical Algorithms
-        ut = datetime_to_ut(datetime)
+        ut = datetime_to_ut(datetime_object)
         dt = ut_to_dt(ut)
 
         # Get the moon and sun positions in ecliptic.
@@ -826,14 +826,22 @@ class Moon(Body):
 
         # And name the phase, allowing 30 degrees (a bit over two days) for full/new/quarter.
         phase_deg = phase * RAD_TO_DEG
-        if phase_deg < 15.0: desc = 'full'
-        elif phase_deg < 75.0: desc = 'waning gibbous'
-        elif phase_deg < 105.0: desc = 'last quarter'
-        elif phase_deg < 165.0: desc = 'waning crescent'
-        elif phase_deg < 195.0: desc = 'new'
-        elif phase_deg < 255.0: desc = 'waxing crescent'
-        elif phase_deg < 285.0: desc = 'first quarter'
-        elif phase_deg < 345.0: desc = 'waxing gibbous'
+        if phase_deg < 15.0:
+            desc = 'full'
+        elif phase_deg < 75.0:
+            desc = 'waning gibbous'
+        elif phase_deg < 105.0:
+            desc = 'last quarter'
+        elif phase_deg < 165.0:
+            desc = 'waning crescent'
+        elif phase_deg < 195.0:
+            desc = 'new'
+        elif phase_deg < 255.0:
+            desc = 'waxing crescent'
+        elif phase_deg < 285.0:
+            desc = 'first quarter'
+        elif phase_deg < 345.0:
+            desc = 'waxing gibbous'
         else: desc = 'full'
 
         return (phase, desc, fraction_illuminated)

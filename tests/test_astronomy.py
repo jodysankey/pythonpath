@@ -1,43 +1,51 @@
 #!/usr/bin/python3
 
-import math
 import unittest
-from astronomy import *
+from datetime import date, datetime
+
+from dateutil import tz
+
+import astronomy
+from astronomy import (DEG_TO_RAD, RAD_TO_DEG, TWO_PI, ONE_AU_IN_KM, Body, Sun, Moon,
+                       SphericalCoordinate, EquatorialCoordinate)
+
+# pylint: disable=missing-function-docstring
 
 def deg_min_sec(degrees, minutes, seconds):
-    assert(degrees >= 0 and minutes >=0 and seconds >=0)
+    assert(degrees >= 0 and minutes >= 0 and seconds >= 0)
     return degrees + minutes/60.0 + seconds/3600.0
 
 def hr_min_sec(hours, minutes, seconds):
     return hours + minutes/60.0 + seconds/3600.0
 
-class TestAstonomy(unittest.TestCase):
+class TestAstronomy(unittest.TestCase):
+    """Unit tests covering the astonomy module."""
 
     def test_linear_interpolator(self):
-        interp = Interpolator([1, 2, 3, 4], [1, 4, 9, 16])
+        interp = astronomy.Interpolator([1, 2, 3, 4], [1, 4, 9, 16])
         self.assertAlmostEqual(interp.at(1), 1)
         self.assertAlmostEqual(interp.at(1.5), 2.25)
         self.assertAlmostEqual(interp.at(3.5), 12.25)
 
     def test_anglular_interpolator(self):
-        interp = AngularInterpolator([1, 2, 3, 4, 5, 6],
-                                     [y*DEG_TO_RAD for y in (315, 45, 135, 225, 315, 45)])
+        interp = astronomy.AngularInterpolator([1, 2, 3, 4, 5, 6],
+                                               [y*DEG_TO_RAD for y in (315, 45, 135, 225, 315, 45)])
         self.assertAlmostEqual(interp.at(1)*RAD_TO_DEG, 315)
         self.assertAlmostEqual(interp.at(2.5)*RAD_TO_DEG, 90)
         self.assertAlmostEqual(interp.at(5)*RAD_TO_DEG, 315)
         self.assertAlmostEqual(interp.at(3.5)*RAD_TO_DEG, 180)
         self.assertAlmostEqual(interp.at(5.75)*RAD_TO_DEG, 22.5)
-        interp = AngularInterpolator([1, 2, 3], [y*DEG_TO_RAD for y in (45, 315, 225)])
+        interp = astronomy.AngularInterpolator([1, 2, 3], [y*DEG_TO_RAD for y in (45, 315, 225)])
         self.assertAlmostEqual(interp.at(1.75)*RAD_TO_DEG, 337.5)
 
     def test_ut_to_datetime(self):
         # Based on the example p61.
-        result = ut_to_datetime(2436116.25)
+        result = astronomy.ut_to_datetime(2436116.25)
         self.assertEqual(result, datetime(1957, 10, 4, 18, 0, 0, tzinfo=tz.UTC))
 
     def test_datetime_to_ut(self):
         # Based on the example p61.
-        result = datetime_to_ut(datetime(1957, 10, 4, 18, 0, 0, tzinfo=tz.UTC))
+        result = astronomy.datetime_to_ut(datetime(1957, 10, 4, 18, 0, 0, tzinfo=tz.UTC))
         self.assertAlmostEqual(result, 2436116.25)
 
     def test_spherical_to_equatorial(self):
@@ -50,33 +58,33 @@ class TestAstonomy(unittest.TestCase):
     def test_nutation(self):
         # Example of nutation from pp148, modified result by 0.001" since our implementation is
         # the simple IAU expression for mean obliquity and also doesn't include T^2 and T^3 terms.
-        delta_psi, mean_obliquity, true_obliquity = nutation(2446895.5)
+        delta_psi, mean_obliquity, true_obliquity = astronomy.nutation(2446895.5)
         self.assertAlmostEqual(delta_psi * RAD_TO_DEG, -deg_min_sec(0, 0, 3.86276))
         self.assertAlmostEqual(mean_obliquity * RAD_TO_DEG, deg_min_sec(23, 26, 27.40754))
         self.assertAlmostEqual(true_obliquity * RAD_TO_DEG, deg_min_sec(23, 26, 36.87534))
 
     def test_greenwich_sidereal_time(self):
         # Example from pp88
-        apparent_sidereal_time_rad = greenwich_sidereal_time(2446895.5)
+        apparent_sidereal_time_rad = astronomy.greenwich_sidereal_time(2446895.5)
         apparent_sidereal_time_hr = apparent_sidereal_time_rad / TWO_PI * 24.0
         self.assertAlmostEqual(apparent_sidereal_time_hr, hr_min_sec(13, 10, 46.13056))
         # Example from pp89
         ut = 2446895.5 + hr_min_sec(19, 21, 0) / 24.0
-        apparent_sidereal_time_rad = greenwich_sidereal_time(ut)
+        apparent_sidereal_time_rad = astronomy.greenwich_sidereal_time(ut)
         apparent_sidereal_time_hr = apparent_sidereal_time_rad / TWO_PI * 24.0
         self.assertAlmostEqual(apparent_sidereal_time_hr, hr_min_sec(8, 34, 56.84829))
 
     def test_sun_ecliptic_position(self):
-        # Example from pp169. Testing only the spherical coordinates since conversion is tested 
+        # Example from pp169. Testing only the spherical coordinates since conversion is tested
         # separately.
-        spherical, _  = Sun().geocentric_position(2448908.5)
+        spherical, _ = Sun().geocentric_position(2448908.5)
         self.assertAlmostEqual(spherical.lng * RAD_TO_DEG, deg_min_sec(199, 54, 21.93898))
         self.assertAlmostEqual(spherical.lat * RAD_TO_DEG, deg_min_sec(0, 0, 0.6202))
         self.assertAlmostEqual(spherical.rng / ONE_AU_IN_KM, 0.9976077495)
 
     def test_moon_ecliptic_position(self):
         # Example from pp343.
-        spherical, equatorial  = Moon().geocentric_position(2448724.5)
+        spherical, equatorial = Moon().geocentric_position(2448724.5)
         self.assertAlmostEqual(spherical.lng * RAD_TO_DEG, deg_min_sec(133, 10, 2.0397648))
         self.assertAlmostEqual(spherical.lat * RAD_TO_DEG, -deg_min_sec(3, 13, 44.855109))
         self.assertAlmostEqual(spherical.rng, 368409.6848161265)
