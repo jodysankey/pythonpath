@@ -10,8 +10,10 @@ import hashlib
 import os
 import stat
 
+# Filename containing settings for how to classify the directory.
 MAGIC_FILE = ".classify"
 
+# The following defined the keys and values that are allowed in the magic file.
 REQUIRED_SETTINGS = {
     'volume':[
         ('small', 'HDD, CF, 4 copies per SD', '\033[38;5;38m'),
@@ -44,10 +46,13 @@ PROTECTIONS = [entry[0] for entry in REQUIRED_SETTINGS['protection']]
 VOLUME_COLORS = {entry[0]: entry[2] for entry in REQUIRED_SETTINGS['volume']}
 PROTECTION_COLORS = {entry[0]: entry[2] for entry in REQUIRED_SETTINGS['protection']}
 
-# Status = implicit,explicit,undefined
+# Status is set on each `ClassifiedDir` based on the directory's relationship to the magic file:
+# * explicit = This directory contained its own magic file defining how it should be backed up.
+# * undefined = Neither this directory nor any of its ancestors have contained a magic file.
+# * implicit = This directory inherits the settings of a magic file in an ancestor.
 
 
-class ClassifiedDir(object):
+class ClassifiedDir:
     """A class to store and report the classification of a single
     directory, as declared by magic .classify files."""
 
@@ -62,13 +67,24 @@ class ClassifiedDir(object):
             self.base_name = os.path.basename(rel_path)
 
         self.parent = parent
+        # The number of path segments from the highest level ancestor to this directory.
         self.depth = (parent.depth + 1) if parent else 0
+        # The number of path segments from the nearest ancestor with a magic classification file
+        # to this directory.
         self.recursion_depth = 0
+        # The greatest number of path segments between this directory and a descendent with its
+        # own magic classification file.
         self.deepest_explicit = -1
+        # ClassifiedDir objects for each subdirectory.
         self.children = []
+        # Total size of the files in the directory (not counting subdirs), in bytes.
         self.size = 0 if fetch_info else None
+        # Number of files in the directory (not counting subdirs).
         self.file_count = 0 if fetch_info else None
+        # Most recent modtime of any file in the directory (not including subdirs).
         self.last_change = 0 if fetch_info else None
+        # Hash over the filenames, mtimes, and sizes of files in the directory
+        # (not including subdirs).
         self.content_hash = b'' if fetch_info else None
 
         # Detect and read the magic file if appropriate
@@ -91,12 +107,11 @@ class ClassifiedDir(object):
                                 "but does not contain classification file")
             else:
                 self._status = 'implicit'
+                self.recurse = True
+                self.recursion_depth = parent.recursion_depth + 1
                 self.volume = parent.volume
                 self.protection = parent.protection
                 self.compress = parent.compress
-                self.recurse = parent.recurse
-                if parent.recurse:
-                    self.recursion_depth = parent.recursion_depth + 1
         if (not self.recurse) or fetch_info or self.recursion_depth < max_recursion_depth:
             self._read_contents(base_path, fetch_info, max_recursion_depth)
 
@@ -137,10 +152,9 @@ class ClassifiedDir(object):
         """Return the classified dir at the root of this archive, or None if not archived."""
         if self._status == 'undefined' or self.volume == 'none':
             return None
-        elif self._status == 'implicit':
+        if self._status == 'implicit':
             return self.parent.archive_root()
-        else:
-            return self
+        return self
 
     def is_archive_root(self):
         """Return true iff this directory is the root of an archive."""
@@ -148,18 +162,23 @@ class ClassifiedDir(object):
 
     def archive_size(self):
         """Return total size of files in an archive when called on the root."""
-        return sum(cd.size for cd in self.descendant_members())
+        return (None if self.size is None else
+                sum(cd.size for cd in self.descendant_members()))
 
     def archive_file_count(self):
         """Return total number of files in an archive when called on the root."""
-        return sum(cd.file_count for cd in self.descendant_members())
+        return (None if self.file_count is None else
+                sum(cd.file_count for cd in self.descendant_members()))
 
     def archive_last_change(self):
         """Return greatest file modification time in an archive when called on the root."""
-        return max(cd.last_change for cd in self.descendant_members())
+        return (None if self.last_change is None else
+                max(cd.last_change for cd in self.descendant_members()))
 
     def archive_hash(self):
         """Return a string hash of file state when called on the root."""
+        if self.content_hash is None:
+            return None
         hasher = hashlib.md5()
         for desc in self.descendant_members():
             hasher.update(desc.content_hash)
@@ -168,8 +187,8 @@ class ClassifiedDir(object):
     def archive_filenames(self):
         """Generator for all filenames within an archive when called on the root."""
         for desc in self.descendant_members():
-            files = next(os.walk(desc.full_path, topdown=True, followlinks=False))[2]
-            for entry in sorted(files):
+            #files = next(os.walk(desc.full_path, topdown=True, followlinks=False))[2]
+            for entry in sorted(os.listdir(desc.full_path)):
                 entry_path = os.path.join(desc.full_path, entry)
                 status = os.lstat(entry_path)
                 if stat.S_ISREG(status.st_mode):
@@ -221,8 +240,8 @@ class ClassifiedDir(object):
                     raise Exception("{} not specified".format(setting))
             if not hasattr(self, 'name'):
                 self.name = self.base_name
-        except Exception as e:
-            raise Exception("Error parsing {}: {}".format(file_path, str(e)))
+        except Exception as ex:
+            raise Exception("Error parsing {}: {}".format(file_path, str(ex)))
         finally:
             f.close()
 
@@ -254,12 +273,11 @@ def _parse_line(line):
         if len(tag_value) != 2:
             raise Exception("Line '" + line + "' not understood")
         return (tag_value[0], tag_value[1])
-    else:
-        return None
+    return None
 
 
 def _string_bool(value):
-    """Returns a matching boolean if the input is true or false, else no change."""
+    """Returns the equivalent boolean if the input string is 'true' or 'false', else no change."""
     if value == 'true': return True
     if value == 'false': return False
     return value
