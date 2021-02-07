@@ -48,7 +48,8 @@ PROTECTION_COLORS = {entry[0]: entry[2] for entry in REQUIRED_SETTINGS['protecti
 
 # Status is set on each `ClassifiedDir` based on the directory's relationship to the magic file:
 # * explicit = This directory contained its own magic file defining how it should be backed up.
-# * undefined = Neither this directory nor any of its ancestors have contained a magic file.
+# * undefined = This directory does not contained a magic file and no ancestors have recursively
+#               included it.
 # * implicit = This directory inherits the settings of a magic file in an ancestor.
 
 
@@ -90,13 +91,13 @@ class ClassifiedDir:
         # Detect and read the magic file if appropriate
         config_file = os.path.join(self.full_path, MAGIC_FILE)
         if os.path.isfile(config_file):
-            self._status = 'explicit'
+            self.status = 'explicit'
             self._read_configuration_file(config_file)
             self._propogate_deepest_explicit()
         else:
             self.name = self.base_name
-            if not parent or parent._status == 'undefined':
-                self._status = 'undefined'
+            if not parent or parent.status == 'undefined':
+                self.status = 'undefined'
                 self.volume = None
                 self.protection = None
                 self.compress = False
@@ -106,7 +107,7 @@ class ClassifiedDir:
                                 "non-recursive classified directory " +
                                 "but does not contain classification file")
             else:
-                self._status = 'implicit'
+                self.status = 'implicit'
                 self.recurse = True
                 self.recursion_depth = parent.recursion_depth + 1
                 self.volume = parent.volume
@@ -130,6 +131,12 @@ class ClassifiedDir:
             if decendent.is_archive_root():
                 yield decendent
 
+    def descendant_attenuations(self):
+        """Generator function for descendant or self classifydirs that stop recursive archiving."""
+        for decendent in self.descendants():
+            if decendent.is_attenuation():
+                yield decendent
+
     def descendant_members(self):
         """Generator function for descendant or self classifydirs inside the current archive. This
         method may only be called on an archive root."""
@@ -150,15 +157,19 @@ class ClassifiedDir:
 
     def archive_root(self):
         """Return the classified dir at the root of this archive, or None if not archived."""
-        if self._status == 'undefined' or self.volume == 'none':
+        if self.status == 'undefined' or self.volume == 'none':
             return None
-        if self._status == 'implicit':
+        if self.status == 'implicit':
             return self.parent.archive_root()
         return self
 
     def is_archive_root(self):
         """Return true iff this directory is the root of an archive."""
-        return self._status == 'explicit' and self.volume != 'none'
+        return self.status == 'explicit' and self.volume != 'none'
+
+    def is_attenuation(self):
+        """Return true iff this directory is the root of an archive."""
+        return self.status == 'explicit' and self.volume == 'none'
 
     def archive_size(self):
         """Return total size of files in an archive when called on the root."""
