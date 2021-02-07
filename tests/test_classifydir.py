@@ -66,6 +66,7 @@ class DateBatchTestCase(unittest.TestCase):
         self.assertEqual([d.name for d in cd.descendants()], ['root', 'a', 'b', 'c', 'd'])
         self.assertEqual([d.name for d in cd.descendant_members()], ['root', 'a', 'b', 'c', 'd'])
         self.assertEqual([d.name for d in cd.descendant_roots()], ['root'])
+        self.assertEqual([d.name for d in cd.descendant_attenuations()], [])
 
         # With lots of properties.
         self.assertEqual(cd.total_size(), 21668) # includes the classify file.
@@ -210,38 +211,43 @@ class DateBatchTestCase(unittest.TestCase):
 
 
     def test_override_archives_inside_recursive_archive(self):
-        self._create_directories(('a', 'ab', 'c', 'cd'))
+        self._create_directories(('a', 'ab', 'c', 'cd', 'e'))
         self._create_classify('', 'small', 'restricted', recurse='true', name='root')
         # Note this overrides a directory inside the recursive parent.
         self._create_classify('a', 'small', 'confidential', recurse='true')
+        # Note this ceases archiving inside the recursive parent.
+        self._create_classify('c', 'none', 'none', recurse='true')
+        # Note this tries to restart archiving in a subdirectory with a different name.
+        self._create_classify('cd', 'medium', 'restricted', recurse='true')
         self._create_files('', (100, 200))
         self._create_files('a', (10000,))
         self._create_files('ab', (20000,))
         self._create_files('c', (1000,))
         self._create_files('cd', (2000,))
+        self._create_files('e', (5000,))
 
         cd = classifydir.ClassifiedDir(self.test_dir.name, fetch_info=True)
 
         self.assertTrue(cd.is_archive_root())
-        self.assertEqual([d.name for d in cd.descendants()], ['root', 'a', 'b', 'c', 'd'])
-        # Members should not include the overridden directory.
-        self.assertEqual([d.name for d in cd.descendant_members()], ['root', 'c', 'd'])
-        self.assertEqual([d.name for d in cd.descendant_roots()], ['root', 'a'])
+        self.assertEqual([d.name for d in cd.descendants()], ['root', 'a', 'b', 'c', 'd', 'e'])
+        # Members should not include the overridden directory or the attenuated directory.
+        self.assertEqual([d.name for d in cd.descendant_members()], ['root', 'e'])
+        self.assertEqual([d.name for d in cd.descendant_roots()], ['root', 'a', 'd'])
+        self.assertEqual([d.name for d in cd.descendant_attenuations()], ['c'])
 
         # Root totals include all files but the archive shouldn't include files in the overridden
         # directory.
-        self.assertEqual(cd.total_size(), 33438)
-        self.assertEqual(cd.total_file_count(), 8)
-        self.assertEqual(cd.archive_size(), 3373)
-        self.assertEqual(cd.archive_file_count(), 5)
+        self.assertEqual(cd.total_size(), 38558)
+        self.assertEqual(cd.total_file_count(), 11)
+        self.assertEqual(cd.archive_size(), 5373)
+        self.assertEqual(cd.archive_file_count(), 4)
         self.assertEqual(list(cd.archive_filenames()), [
             os.path.join(self.test_dir.name, '.classify'),
             os.path.join(self.test_dir.name, '1'),
             os.path.join(self.test_dir.name, '2'),
-            os.path.join(self.test_dir.name, 'c', '1'),
-            os.path.join(self.test_dir.name, 'c', 'd', '1')])
+            os.path.join(self.test_dir.name, 'e', '1')])
 
-        # The lower level archive should include its own files.
+        # The lower level archives should include thier own files.
         child = list(cd.descendant_roots())[1]
         self.assertTrue(child.is_archive_root())
         self.assertEqual(child.total_size(), 30065)
@@ -252,6 +258,15 @@ class DateBatchTestCase(unittest.TestCase):
             os.path.join(self.test_dir.name, 'a', '.classify'),
             os.path.join(self.test_dir.name, 'a', '1'),
             os.path.join(self.test_dir.name, 'a', 'b', '1')])
+
+        # The lower level archives should include thier own files.
+        child = list(cd.descendant_roots())[2]
+        self.assertTrue(child.is_archive_root())
+        self.assertEqual(child.archive_size(), 2064)
+        self.assertEqual(child.archive_file_count(), 2)
+        self.assertEqual(list(child.archive_filenames()), [
+            os.path.join(self.test_dir.name, 'c', 'd', '.classify'),
+            os.path.join(self.test_dir.name, 'c', 'd', '1')])
 
 
     def test_parse_with_comments(self):
