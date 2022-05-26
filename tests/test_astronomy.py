@@ -95,7 +95,7 @@ class TestAstronomy(unittest.TestCase):
         # Example from pp347, expressing an earlier UT to match midnight DT in the example.
         phase, desc, fraction = Moon().phase(datetime(1992, 4, 11, 23, 58, 51, tzinfo=tz.UTC))
         self.assertAlmostEqual(phase * RAD_TO_DEG, 69.07558948833432)
-        self.assertEqual(desc, 'waning gibbous')
+        self.assertEqual(desc, 'waxing gibbous')
         self.assertAlmostEqual(fraction, 0.6785679894780358)
 
     def test_events_from_positions(self):

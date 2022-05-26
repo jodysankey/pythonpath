@@ -824,23 +824,23 @@ class Moon(Body):
         phase = atan2(sun.rng * sin(psi), moon.rng - sun.rng * cos(psi))
         fraction_illuminated = (1.0 + cos(phase)) / 2.0
 
-        # And name the phase, allowing 30 degrees (a bit over two days) for full/new/quarter.
+        # And name the phase, allowing 20 degrees (a bit under two days) for full/new/quarter.
         phase_deg = phase * RAD_TO_DEG
-        if phase_deg < 15.0:
+        if phase_deg > 350:
             desc = 'full'
-        elif phase_deg < 75.0:
+        elif phase_deg > 280:
             desc = 'waning gibbous'
-        elif phase_deg < 105.0:
+        elif phase_deg > 260:
             desc = 'last quarter'
-        elif phase_deg < 165.0:
+        elif phase_deg > 190:
             desc = 'waning crescent'
-        elif phase_deg < 195.0:
+        elif phase_deg > 170:
             desc = 'new'
-        elif phase_deg < 255.0:
+        elif phase_deg > 100:
             desc = 'waxing crescent'
-        elif phase_deg < 285.0:
+        elif phase_deg > 80:
             desc = 'first quarter'
-        elif phase_deg < 345.0:
+        elif phase_deg > 10:
             desc = 'waxing gibbous'
         else: desc = 'full'
 
