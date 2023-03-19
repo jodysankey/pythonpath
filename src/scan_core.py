@@ -8,13 +8,14 @@ Most of this is really pretty old."""
 # PublicPermissions: True
 #========================================================
 
-import sys
+import collections
+import itertools
+import math
 import os
 import re
 import subprocess
-import itertools
-import math
-import collections
+import sys
+import time
 
 
 # Define constants
@@ -29,10 +30,15 @@ if 'SCANNER_URL' not in os.environ:
     print('Could not find a SCANNER_URL environment variable')
     sys.exit(1)
 SCANNER_URL = os.environ['SCANNER_URL']
-BASE_SCAN_COMMAND = "scanimage -d '{}' --buffer-size=1024 --format=tiff --mode=Color".format(
-    SCANNER_URL)
-BASE_SCAN_SUFFIX = ("--res=300") # HP scanner resets resolution unless it is the last argument
+
+BASE_SCAN_COMMAND = f"scanimage -d '{SCANNER_URL}' --buffer-size=1024 --format=tiff --mode=Color"
+
+# HP scanner resets resolution unless it is the last argument
+BASE_SCAN_SUFFIX = ("--res=300")
+
 BASE_CONVERT_COMMAND = ("convert ")
+
+COLD_START_FAIL_TIME_SEC = 2
 
 SOURCES = [
     {'labels':('p', 'platen'),
@@ -107,7 +113,7 @@ PAPERS = [
     # 'scan':'','sources':{}, 'convert':'-trim +repage'},
 ]
 
-#Note order is important for convert, 'convert' gets added before 'color' or 'gray'
+# Note order is important for convert, 'convert' gets added before 'color' or 'gray'
 SCALES = [
     {'labels':('s', 'small'), 'description':'Small (40% 300dpi)',
      'file_type':'png',
@@ -139,14 +145,19 @@ class ScanError(Exception):
     """An error occurred during scanning."""
     def __init__(self, message):
         self.message = message
+        super().__init__(self.message)
 
 
-class Customization(object):
+class Customization:
+    """A single customization of the default scan behavior."""
+
     def __init__(self, purpose, dictionary):
         self.purpose = purpose
         for k in dictionary:
             setattr(self, k, dictionary[k])
+
     def attribute(self, attribute_name, conditional_names):
+        """Returns the supplied attribute_name for this customization."""
         ret = []
         if hasattr(self, attribute_name):
             ret.append(getattr(self, attribute_name))
@@ -156,26 +167,40 @@ class Customization(object):
         return ret
 
 
-class CustomizationSet(object):
+class CustomizationSet:
+    """A collection of customizations to the default scan behavior."""
+
     def __init__(self):
         self.customizations = []
+
     def append(self, new_customization):
+        """Append a new customization to the set."""
         self.customizations.append(new_customization)
+
     def first_value(self, key):
+        """Returns the requested key in the first matching customization."""
         for customization in self.customizations:
             if hasattr(customization, key):
                 return getattr(customization, key)
         return None
+
     def summary(self, leader):
-        lines = ["{}{:10} {}".format(leader, c.purpose, c.description) for c in self.customizations]
+        """Returns a human readable summary of all the customizations in this set."""
+        lines = [f"{leader}{c.purpose:10} {c.description}" for c in self.customizations]
         return "\n".join(lines)
+
     def labels(self):
+        """Returns all labels in the customizations in the set."""
         label_lists = [c.labels for c in self.customizations]
         return list(itertools.chain.from_iterable(label_lists))
+
     def scan_flags(self):
+        """Returns the scan command flags needed for these customizations."""
         flag_lists = [c.attribute("scan", self.labels()) for c in self.customizations]
         return list(itertools.chain.from_iterable(flag_lists))
+
     def convert_flags(self, is_color):
+        """Returns the convert command flags needed for these customizations."""
         flag_lists = [c.attribute("convert", self.labels()) for c in self.customizations]
         if is_color:
             flag_lists.extend([c.attribute("convert_color", self.labels())
@@ -187,16 +212,17 @@ class CustomizationSet(object):
 
 
 def find_option_or_die(option_set, label):
-    """Return the option containing label, or None if not found"""
+    """Return the option containing label, or None if not found."""
     label = label.lower()
     for option in option_set:
         if label in option['labels']:
             return option
-    print("Invalid option: " + label)
+    print(f"Invalid option: {label}")
     sys.exit(1)
 
 
 def beep():
+    """Plays a short tone."""
     subprocess.check_call([
         'play', '--no-show-progress', '--null', '--channels', '1',
         'synth', '1.5',
@@ -235,19 +261,19 @@ def get_start_output_page(dest, file_type):
         if dest_dir:
             dest_dir = os.path.expanduser(dest_dir)
             if not os.path.isdir(dest_dir):
-                die("ERROR:Supplied path '{}' does not exist".format(dest_dir))
+                die(f"ERROR:Supplied path '{dest_dir}' does not exist")
             dest = os.path.join(dest_dir, dest_name)
         else:
             dest = os.path.join(SCAN_PATH, dest_name)
 
-        if os.path.isfile("{}.{}".format(dest, file_type)):
+        if os.path.isfile(f"{dest}.{file_type}"):
             start_page += 1
-        while (os.path.isfile("{} p{}.{}".format(dest, start_page, file_type))
-               or os.path.isfile("{} p0{}.{}".format(dest, start_page, file_type))
-               or os.path.isfile("{} p00{}.{}".format(dest, start_page, file_type))):
+        while (os.path.isfile(f"{dest} p{start_page}.{file_type}")
+               or os.path.isfile(f"{dest} p0{start_page}.{file_type}")
+               or os.path.isfile(f"{dest} p00{start_page}.{file_type}")):
             start_page += 1
         if start_page > 1:
-            print("Destination already exists, start at page {}".format(start_page))
+            print(f"Destination already exists, start at page {start_page}")
     return start_page
 
 
@@ -266,9 +292,18 @@ def batch_scan_image(base_command, start_num, debug=False):
         SCAN_PATH, SCAN_NAME, start_num))
     if debug:
         print('RUNNING: ' + full_command)
-    ret = subprocess.call(full_command, shell=True)
-    if ret and ret != 7: #Error 7 is out of documents when doing a batch feed
-        raise ScanError("ERROR {} calling scanimage".format(ret))
+    for attempt in range(1, 4):
+        start = time.time()
+        ret = subprocess.call(full_command, shell=True)
+        if ret in (0, 7):
+            # 0 is success, 7 is out of documents when doing a batch feed
+            return
+        if ret == 1 and time.time() - start < COLD_START_FAIL_TIME_SEC:
+            # Sometimes the scanner returns 1 quickly if its not warmed up yet.
+            print(f'Retrying scan command after immediate fail on attempt {attempt}')
+            continue
+        raise ScanError(f"ERROR {ret} calling scanimage")
+    raise ScanError("ERROR repeated retcode 1 calling scanimage")
 
 
 def single_scan_image(command, num, debug=False):
@@ -277,14 +312,15 @@ def single_scan_image(command, num, debug=False):
     scan_file = scan_file_name(num)
     if debug:
         print('RUNNING: ' + command)
-    ret = subprocess.call("{} > '{}'".format(command, scan_file), shell=True)
+    ret = subprocess.call(f"{command} > '{scan_file}'", shell=True)
     if ret:
-        raise ScanError("ERROR {} calling scanimage".format(ret))
+        raise ScanError(f"ERROR {ret} calling scanimage")
     return scan_file
 
 
 def scan_file_name(index):
-    return "{0}/{1}{2:0>3}.tif".format(SCAN_PATH, SCAN_NAME, index)
+    """Returns the scan output filename for the supplied index."""
+    return f'{SCAN_PATH}/{SCAN_NAME}{index:0>3}.tif'
 
 
 def acquire_scans(customizations, scan_start_index, output_start_index, debug=False):
@@ -293,11 +329,9 @@ def acquire_scans(customizations, scan_start_index, output_start_index, debug=Fa
     2. A dictionary of whether invertion is required for each filename
     3. A dictionary of output indices for each filename
     4. The error produced during scanning if one exists"""
-
     command = " ".join([BASE_SCAN_COMMAND] + customizations.scan_flags() + [BASE_SCAN_SUFFIX])
-
     scans = []
-    index_map = dict()
+    index_map = {}
     invertion_map = collections.defaultdict(bool) # Invertion is false unless otherwise speciified
     mode = customizations.first_value('multi')
     error = None
@@ -397,7 +431,7 @@ def remove_killed_files(files, kill_indices, index_map):
                 if index_map[f] > kill_output:
                     index_map[f] = index_map[f] - 1
         else:
-            print("WARNING: Page {} was not created so could not be killed".format(kill))
+            print(f"WARNING: Page {kill} was not created so could not be killed")
     return files
 
 
@@ -407,7 +441,7 @@ def answer_question_interactively(question):
         answer = input(question + '? [Y or N]: ')
         if answer.lower() == 'y':
             return True
-        elif answer.lower() == 'n':
+        if answer.lower() == 'n':
             return False
 
 
@@ -417,19 +451,20 @@ def remove_unwanted_files(files, index_map):
     # TODO: The output indices map also needs to be renumbered to account for the deletions
     kill_indices = []
     for i, f in zip(range(len(files)), files):
-        subprocess.call("display -resize 25% '{}'".format(f), shell=True)
+        subprocess.call(f"display -resize 25% '{f}'", shell=True)
         if not answer_question_interactively('Keep ' + f):
             kill_indices.append(i)
     return remove_killed_files(files, kill_indices, index_map)
 
 
 def output_format_string(dest, num_digits, extention):
-    return "{} p{{:0{}d}}.{}".format(dest, num_digits, extention)
+    """Returns an output file formatting string."""
+    return f"{dest} p{{:0{num_digits}d}}.{extention}"
 
 
 def renumber_existing_files(dest, num_digits, extention, start_page):
     """Renames existing files so all use the specified num of digits"""
-    unnumbered_format = "{}.{}".format(dest, extention)
+    unnumbered_format = f'{dest}.{extention}'
     output_format = output_format_string(dest, num_digits, extention)
     lesser_formats = [output_format_string(dest, d, extention) for d in range(1, num_digits)]
 
@@ -450,7 +485,7 @@ def convert_scans(scans, invertion_map, index_map, customizations, dest, extenti
         if not dest:
             new_file = scan_file.replace("tif", extention)
         elif len(scans) == 1 and index_map[scans[0]] == 1:
-            new_file = "{}.{}".format(dest, extention)
+            new_file = f"{dest}.{extention}"
         else:
             new_file = output_format_string(
                 dest, num_digits, extention).format(index_map[scan_file])
@@ -468,13 +503,13 @@ def convert_scans(scans, invertion_map, index_map, customizations, dest, extenti
             print('RUNNING: ' + command)
         ret_val = subprocess.call(command, shell=True)
         if ret_val != 0 and not os.path.exists(new_file):
-            print("WARNING: Could not convert {} (error code: {})".format(scan_file, ret_val))
+            print(f'WARNING: Could not convert {scan_file} (error code: {ret_val})')
         else:
             if ret_val != 0:
-                print('Converted {} to {} (but convertion returned error code {})'.format(
-                    scan_file, new_file, ret_val))
+                print(f'Converted {scan_file} to {new_file}'
+                      + f' (but convertion returned error code {ret_val})')
             else:
-                print('Converted {} to {}'.format(scan_file, new_file))
+                print(f'Converted {scan_file} to {new_file}')
             os.remove(scan_file)
             outputs.append(new_file)
     return outputs
@@ -517,7 +552,7 @@ def scan_and_convert(dest, customizations, view, check, kills, debug):
     #Finally show the user what we've created, if they are interested
     if view:
         for output in outputs:
-            subprocess.call("display -resize 25% '{}' &".format(output), shell=True)
+            subprocess.call(f"display -resize 25% '{output}' &", shell=True)
 
 
 def perform_scan(dest, source, paper, scale, color, kills=[], view=False, check=False, debug=False):
