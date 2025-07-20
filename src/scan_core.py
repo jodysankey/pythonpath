@@ -8,15 +8,16 @@ Most of this is really pretty old."""
 # PublicPermissions: True
 # ========================================================
 
+import fcntl
 import itertools
 import math
 import os
 import re
 import subprocess
 import sys
+import termios
 import time
-from typing import Any, Callable, Dict, Iterator, List, Optional, Set, Tuple
-
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Set, Tuple
 
 # Fixed path and default file prefix for scan outputs.
 SCAN_PATH: str = os.path.expanduser("~/tmp/scan")
@@ -55,7 +56,7 @@ class ScanError(Exception):
 class ScanOptions:
     """Dataclass to store the very similar extra options."""
 
-    def __init__(self, view: bool, check: bool, debug: bool) -> None:
+    def __init__(self, view: bool = False, check: bool = False, debug: bool = False) -> None:
         self.view = view
         self.check = check
         self.debug = debug
@@ -151,6 +152,7 @@ class SelectedCustomizations:
 
     @staticmethod
     def from_labels(source: str, paper: str, scale: str, color: str):
+        """Builds a new object from the supplied purpose labels."""
         customizations = SelectedCustomizations()
         customizations.add_by_label(SOURCES, source)
         customizations.add_by_label(PAPERS, paper)
@@ -420,6 +422,60 @@ def answer_question_interactively(question: str) -> bool:
             return False
 
 
+def read_single_keypress() -> Tuple[chr]:
+    """Waits for a single keypress on stdin.
+
+    Credit mheyman from https://stackoverflow.com/questions/983354/how-do-i-wait-for-a-pressed-key.
+
+    Returns a tuple of characters of the key that was pressed - on Linux, pressing keys like up
+    arrow results in a sequence of characters. Returns ('\x03',) on KeyboardInterrupt which can
+    happen when a signal gets handled.
+    """
+    fd = sys.stdin.fileno()
+    # save old state
+    flags_save = fcntl.fcntl(fd, fcntl.F_GETFL)
+    attrs_save = termios.tcgetattr(fd)
+    # make raw - the way to do this comes from the termios(3) man page.
+    attrs = list(attrs_save)  # copy the stored version to update
+    # iflag
+    attrs[0] &= ~(
+        termios.IGNBRK
+        | termios.BRKINT
+        | termios.PARMRK
+        | termios.ISTRIP
+        | termios.INLCR
+        | termios.IGNCR
+        | termios.ICRNL
+        | termios.IXON
+    )
+    # oflag
+    attrs[1] &= ~termios.OPOST
+    # cflag
+    attrs[2] &= ~(termios.CSIZE | termios.PARENB)
+    attrs[2] |= termios.CS8
+    # lflag
+    attrs[3] &= ~(termios.ECHONL | termios.ECHO | termios.ICANON | termios.ISIG | termios.IEXTEN)
+    termios.tcsetattr(fd, termios.TCSANOW, attrs)
+    # turn off non-blocking
+    fcntl.fcntl(fd, fcntl.F_SETFL, flags_save & ~os.O_NONBLOCK)
+    # read a single keystroke
+    ret = []
+    try:
+        ret.append(sys.stdin.read(1))  # returns a single character
+        fcntl.fcntl(fd, fcntl.F_SETFL, flags_save | os.O_NONBLOCK)
+        c = sys.stdin.read(1)  # returns a single character
+        while len(c) > 0:
+            ret.append(c)
+            c = sys.stdin.read(1)
+    except KeyboardInterrupt:
+        ret.append("\x03")
+    finally:
+        # restore old state
+        termios.tcsetattr(fd, termios.TCSAFLUSH, attrs_save)
+        fcntl.fcntl(fd, fcntl.F_SETFL, flags_save)
+    return tuple(ret)
+
+
 # Scanning and conversion subroutines
 # ===================================
 
@@ -542,7 +598,8 @@ def acquire_scans(
             while True:
                 scans.append(ScanOutput(single_scan_image(cmd, num, debug), out))
                 # Optionally could beep() here
-                if input("Return to scan another or any other key to stop: ") != "":
+                print("\033[;32m<press space to scan another or any other key to stop>\033[0m")
+                if read_single_keypress() != (" ",):
                     break
                 num += 1
                 out += 1
@@ -654,13 +711,15 @@ def scan_and_convert(
     dest_dir: str,
     dest_prefix: str,
     customizations: SelectedCustomizations,
-    kills: Set[int],
-    options: ScanOptions,
+    options: Optional[ScanOptions] = None,
+    kills: Optional[Iterable[int]] = None,
 ) -> None:
     """Do the bulk of the work to execute scans and convert."""
     if not os.path.isdir(dest_dir):
         print(f"ERROR:Supplied path '{dest_dir}' does not exist")
         sys.exit(1)
+    if options is None:
+        options = ScanOptions()
 
     extention = str(customizations.first_extra("file_type"))
     scan_start_index = largest_filename_in_dir(SCAN_PATH, SCAN_PREFIX, "tif") + 1
@@ -673,7 +732,7 @@ def scan_and_convert(
 
     # Do the scanning and remove unwanted pages
     outputs, error = acquire_scans(customizations, scan_start_index, debug=options.debug)
-    outputs = remove_killed_files(outputs, kills)
+    outputs = remove_killed_files(outputs, set([] if kills is None else kills))
     if options.check:
         outputs = remove_unwanted_files(outputs)
     if not outputs:

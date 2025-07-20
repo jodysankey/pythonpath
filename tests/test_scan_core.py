@@ -61,8 +61,10 @@ class TestScanCore(unittest.TestCase):
 
     def test_full_flow(self):
         create_scan_files(1)
+
+        customizations = build_customizations("plmc")
         with contextlib.redirect_stdout(self.stdout):
-            scan_core.perform_scan(os.path.join(self.scan_dir, "test"), "p", "l", "m", "c")
+            scan_core.scan_and_convert(self.scan_dir, "test", customizations)
 
         # Because of implementation of single scan, the scan command got echoed into the scan file,
         # which was then deleted after a successful convert, so can't be validated.
