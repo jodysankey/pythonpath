@@ -376,7 +376,7 @@ SCALES = CustomizationOptions(
     Customization(
         labels=("l", "large"),
         description=r"Large (Unscaled 300dpi)",
-        convert=[""],
+        convert=[],
         extras={"file_type": "jpg"},
     ),
 )

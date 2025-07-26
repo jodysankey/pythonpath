@@ -215,7 +215,7 @@ class TestScanCore(unittest.TestCase):
             ["test p08.jpg", "test p09.jpg", "test p10.jpg", "test p11.jpg"],
         )
 
-    def test_convert_scans(self):
+    def test_convert_scans_small_and_invert(self):
         customizations = build_customizations("1lsg")
 
         outputs = [output(4), output(5, invert=True), output(6)]
@@ -236,6 +236,38 @@ class TestScanCore(unittest.TestCase):
             f"Converted {self.scan_dir}/scan_004.tif to {self.scan_dir}/scan_004.jpg successfully\n"
             f"Converted {self.scan_dir}/scan_005.tif to {self.scan_dir}/scan_005.jpg successfully\n"
             f"Converted {self.scan_dir}/scan_006.tif to {self.scan_dir}/scan_006.jpg successfully\n"
+        )
+
+    def test_convert_scans_medium(self):
+        customizations = build_customizations("1lmc")
+
+        outputs = [output(1)]
+        for o in outputs:
+            o.target_path = o.path.replace("tif", "jpg")
+            Path(o.path).touch()
+
+        with contextlib.redirect_stdout(self.stdout):
+            scan_core.convert_scans(outputs, customizations)
+
+        self.assertStdOut(
+            f"convert {self.scan_dir}/scan_001.tif -resize 60% {self.scan_dir}/scan_001.jpg\n"
+            f"Converted {self.scan_dir}/scan_001.tif to {self.scan_dir}/scan_001.jpg successfully\n"
+        )
+
+    def test_convert_scans_large(self):
+        customizations = build_customizations("14lc")
+
+        outputs = [output(1)]
+        for o in outputs:
+            o.target_path = o.path.replace("tif", "jpg")
+            Path(o.path).touch()
+
+        with contextlib.redirect_stdout(self.stdout):
+            scan_core.convert_scans(outputs, customizations)
+
+        self.assertStdOut(
+            f"convert {self.scan_dir}/scan_001.tif {self.scan_dir}/scan_001.jpg\n"
+            f"Converted {self.scan_dir}/scan_001.tif to {self.scan_dir}/scan_001.jpg successfully\n"
         )
 
 
